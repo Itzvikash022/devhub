@@ -197,7 +197,7 @@ export default function PipelineTab() {
                       >
                         <div className="min-w-0 flex-1 space-y-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-foreground truncate font-sans text-sm font-semibold">
+                            <span className="text-foreground font-sans text-sm font-semibold break-all max-w-full">
                               {item.label}
                             </span>
                             {item.environment && (
@@ -217,14 +217,14 @@ export default function PipelineTab() {
                             href={item.url.startsWith("http") ? item.url : `https://${item.url}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-primary inline-flex max-w-full items-center gap-1 truncate font-mono text-xs hover:underline"
+                            className="text-primary inline-flex max-w-full items-center gap-1 font-mono text-xs hover:underline break-all"
                           >
-                            {item.url}
+                            <span className="truncate max-w-[240px]">{item.url}</span>
                             <ExternalLink className="h-3 w-3 shrink-0" />
                           </a>
 
                           {item.notes && (
-                            <p className="text-muted-foreground bg-muted/10 border-border/30 mt-1 rounded border p-1.5 font-sans text-xs leading-relaxed">
+                            <p className="text-muted-foreground bg-muted/10 border-border/30 mt-1 rounded border p-1.5 font-sans text-xs leading-relaxed break-all break-words overflow-hidden">
                               {item.notes}
                             </p>
                           )}

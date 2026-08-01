@@ -95,7 +95,7 @@ export function useUpdateNote(id: string, projectId: string) {
       });
       return handleResponse<NoteData>(res);
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       // Invalidate queries to refresh sidebar list & editor state
       queryClient.invalidateQueries({ queryKey: ["notes", projectId] });
       queryClient.invalidateQueries({ queryKey: ["note", id] });

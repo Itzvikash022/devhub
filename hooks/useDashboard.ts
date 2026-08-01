@@ -10,6 +10,8 @@ export interface DashboardProject {
   status: "active" | "on-hold" | "archived";
   createdAt: string;
   updatedAt: string;
+  noteCount?: number;
+  taskCount?: number;
 }
 
 export interface DashboardDeadline {

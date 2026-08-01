@@ -7,6 +7,8 @@ import { API_ROUTES } from "@/constants/routes.constants";
 import type { ApiResponse } from "@/types";
 
 export interface CommentData {
+  _id?: string;
+  userName?: string;
   text: string;
   createdAt: string;
 }

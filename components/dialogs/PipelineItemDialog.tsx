@@ -106,8 +106,8 @@ export function PipelineItemDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false} className="sm:max-w-md">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <DialogContent showCloseButton={false} className="sm:max-w-md max-w-[90vw] overflow-hidden break-words">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 max-w-full overflow-hidden">
           <DialogHeader>
             <DialogTitle>{isEdit ? "Resource Details" : "New Resource"}</DialogTitle>
             <DialogDescription>
@@ -117,7 +117,7 @@ export function PipelineItemDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 py-2 max-w-full overflow-hidden">
             <Field data-invalid={!!errors.label}>
               <FieldLabel htmlFor="label">Resource Label / Name</FieldLabel>
               <Input
@@ -125,6 +125,7 @@ export function PipelineItemDialog({
                 type="text"
                 placeholder="e.g. GitHub Repository, Production Server"
                 disabled={isPending}
+                className="max-w-full"
                 {...register("label")}
               />
               {errors.label?.message && <FieldError>{errors.label.message}</FieldError>}
@@ -180,6 +181,7 @@ export function PipelineItemDialog({
                 type="text"
                 placeholder="e.g. https://github.com/user/project, 192.168.1.1"
                 disabled={isPending}
+                className="max-w-full"
                 {...register("url")}
               />
               {errors.url?.message && <FieldError>{errors.url.message}</FieldError>}
@@ -191,7 +193,7 @@ export function PipelineItemDialog({
                 id="notes"
                 placeholder="Connection passwords, server SSH credentials locations, or notes..."
                 disabled={isPending}
-                className="h-16 resize-none"
+                className="h-16 resize-none max-w-full break-all break-words"
                 {...register("notes")}
               />
               {errors.notes?.message && <FieldError>{errors.notes.message}</FieldError>}

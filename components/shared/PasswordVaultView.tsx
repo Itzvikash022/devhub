@@ -2,25 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { usePasswordsList, useDeletePassword, PasswordData } from "@/hooks/usePasswords";
 import { useProjectsList } from "@/hooks/useProjects";
-import { EmptyState } from "@/components/shared/EmptyState";
+import { SetPageHeader } from "@/components/layout/SetPageHeader";
 import { PasswordDialog } from "@/components/dialogs/PasswordDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Key,
   Plus,
   Search,
   Eye,
@@ -30,24 +18,27 @@ import {
   Edit2,
   Trash2,
   ExternalLink,
-  Lock,
   Loader2,
+  SlidersHorizontal,
+  KeyRound,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ROUTES } from "@/constants/routes.constants";
 
 interface PasswordVaultViewProps {
   projectId?: string;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
+  database: "Database",
+  "api-key": "API Key",
+  service: "Service",
+  ssh: "SSH",
   repository: "Repository",
   hosting: "Hosting",
-  database: "Database",
-  api: "API Endpoint",
-  cloud: "Cloud / AWS",
+  cloud: "Cloud",
   personal: "Personal",
   shared: "Shared",
-  utility: "Utility",
   other: "Other",
 };
 
@@ -56,7 +47,8 @@ export function PasswordVaultView({ projectId }: PasswordVaultViewProps) {
 
   // Filter and Search states
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterProject, setFilterProject] = useState<string>("all");
 
   const searchParams = useSearchParams();
   const searchParam = searchParams.get("search");
@@ -83,12 +75,11 @@ export function PasswordVaultView({ projectId }: PasswordVaultViewProps) {
   const { data: projects = [] } = useProjectsList();
   const { mutate: deletePassword, isPending: isDeletePending } = useDeletePassword();
 
-  // Custom reveal mutation handler
+  // Custom reveal handler
   const [revealPendingId, setRevealPendingId] = useState<string | null>(null);
 
   const handleReveal = async (item: PasswordData) => {
     const id = item._id;
-    // Toggle if already decrypted
     if (decryptedSecrets[id]) {
       setRevealedIds((prev) => ({ ...prev, [id]: !prev[id] }));
       return;
@@ -118,32 +109,6 @@ export function PasswordVaultView({ projectId }: PasswordVaultViewProps) {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between pb-3">
-          <div className="bg-muted h-6 w-36 animate-pulse rounded" />
-          <div className="bg-muted h-9 w-24 animate-pulse rounded" />
-        </div>
-        <Card className="bg-card border-border border">
-          <CardContent className="space-y-4 py-12">
-            <div className="bg-muted h-8 w-full animate-pulse rounded" />
-            <div className="bg-muted h-8 w-full animate-pulse rounded" />
-            <div className="bg-muted h-8 w-full animate-pulse rounded" />
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-destructive py-6 text-center">
-        Failed to load secure password vault data.
-      </div>
-    );
-  }
-
   const handleOpenCreate = () => {
     setSelectedItem(undefined);
     setDialogOpen(true);
@@ -172,260 +137,291 @@ export function PasswordVaultView({ projectId }: PasswordVaultViewProps) {
   // Filter & Search matching
   const filteredPasswords = passwords.filter((item) => {
     const matchesSearch =
+      !searchQuery ||
       item.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (item.url && item.url.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    const matchesCategory = activeCategory === "all" ? true : item.category === activeCategory;
+    const matchesCategory = filterCategory === "all" ? true : item.category === filterCategory;
 
-    return matchesSearch && matchesCategory;
+    const matchesProject =
+      filterProject === "all"
+        ? true
+        : filterProject === "unlinked"
+        ? !item.projectId
+        : item.projectId === filterProject;
+
+    return matchesSearch && matchesCategory && matchesProject;
   });
 
-  return (
-    <div className="space-y-6">
-      {/* Search and action bar */}
-      <div className="bg-card border-border flex flex-col justify-between gap-3 rounded-md border p-3 md:flex-row md:items-center">
-        <div className="relative flex-1 md:max-w-md">
-          <Search className="text-muted-foreground absolute top-2.5 left-2.5 h-4 w-4" />
-          <Input
-            placeholder="Search passwords..."
-            className="h-9 pl-9 text-xs"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+  const categories = Array.from(new Set(passwords.map((p) => p.category)));
 
-        <div className="flex flex-wrap items-center gap-3">
+  if (isLoading) {
+    return (
+      <div className="max-w-[1100px] mx-auto py-12 text-center font-inter text-sm text-[#6B6E64]">
+        <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-[#4F46C7]" />
+        Loading credentials...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-[1100px] mx-auto py-12 text-center font-inter text-sm text-[#B14B4B]">
+        Failed to load password vault data.
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {isGlobalView && <SetPageHeader title="Password Vault" />}
+
+      <div className="max-w-[1100px] mx-auto">
+        {/* Filters Toolbar */}
+        <div className="flex items-center gap-3 mb-5 flex-wrap">
+          <SlidersHorizontal className="w-3.5 h-3.5 text-[#6B6E64] shrink-0" />
+
+          {/* Search */}
+          <div className="relative flex-1 min-w-[180px] max-w-xs">
+            <Search className="w-3.5 h-3.5 text-[#6B6E64] absolute left-2.5 top-2.5" />
+            <input
+              type="text"
+              placeholder="Search passwords..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-3 py-1 bg-[#F8F9F5] border border-[#DAD8CE] font-inter text-[12px] text-[#20221F] rounded-md h-8 focus:outline-none focus:border-[#4F46C7]"
+            />
+          </div>
+
+          {/* Project Filter (Global view only) */}
+          {isGlobalView && (
+            <select
+              value={filterProject}
+              onChange={(e) => setFilterProject(e.target.value)}
+              className="px-2.5 bg-[#F8F9F5] border border-[#DAD8CE] font-inter text-[12px] text-[#20221F] rounded-md h-8 focus:outline-none focus:border-[#4F46C7]"
+            >
+              <option value="all">All projects</option>
+              <option value="unlinked">Unlinked (—)</option>
+              {projects.map((p) => (
+                <option key={p._id} value={p._id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Category Filter */}
           <select
-            value={activeCategory}
-            onChange={(e) => setActiveCategory(e.target.value)}
-            className="border-input bg-background text-foreground focus-visible:ring-ring flex h-9 w-36 rounded-md border px-3 py-1 text-xs shadow-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="px-2.5 bg-[#F8F9F5] border border-[#DAD8CE] font-inter text-[12px] text-[#20221F] rounded-md h-8 focus:outline-none focus:border-[#4F46C7]"
           >
-            <option value="all">All Categories</option>
-            {Object.entries(CATEGORY_LABELS).map(([k, label]) => (
-              <option key={k} value={k}>
-                {label}
+            <option value="all">All categories</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {CATEGORY_LABELS[c] || c}
               </option>
             ))}
           </select>
 
-          <Button size="sm" onClick={handleOpenCreate} className="shrink-0 gap-1.5">
-            <Plus className="h-4 w-4" />
-            New Password
-          </Button>
-        </div>
-      </div>
+          {/* Entries count beside filters */}
+          <span className="font-mono text-[11px] text-[#6B6E64] shrink-0">
+            {filteredPasswords.length} entries
+          </span>
 
-      {passwords.length === 0 ? (
-        <Card className="bg-card border-border border">
-          <CardContent className="p-0">
-            <EmptyState
-              icon={Key}
-              title="No credentials stored yet"
-              description="Store passwords, API access keys, and cloud credentials. Data is GCM-encrypted at rest."
-              action={{
-                label: "Add Password",
-                onClick: handleOpenCreate,
-              }}
-            />
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="border-border bg-card overflow-x-auto rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-border/50 bg-muted/10 border-b hover:bg-transparent">
-                <TableHead className="font-mono text-[10px] font-semibold tracking-wider">
-                  Service Label
-                </TableHead>
-                <TableHead className="font-mono text-[10px] font-semibold tracking-wider">
-                  Username
-                </TableHead>
-                <TableHead className="font-mono text-[10px] font-semibold tracking-wider">
-                  Secret / Password
-                </TableHead>
-                {isGlobalView && (
-                  <TableHead className="font-mono text-[10px] font-semibold tracking-wider">
-                    Linked Project
-                  </TableHead>
-                )}
-                <TableHead className="font-mono text-[10px] font-semibold tracking-wider">
-                  Category
-                </TableHead>
-                <TableHead className="w-24 text-right font-mono text-[10px] font-semibold tracking-wider">
-                  Actions
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredPasswords.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={isGlobalView ? 6 : 5}
-                    className="text-muted-foreground py-8 text-center text-xs"
-                  >
-                    No matching passwords.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredPasswords.map((item) => {
-                  const isRevealed = !!revealedIds[item._id];
-                  const secret = decryptedSecrets[item._id] || "";
-                  const project = projects.find((p) => p._id === item.projectId);
+          {/* Add Password Button at far right corner */}
+          <button
+            onClick={handleOpenCreate}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#4F46C7] text-white font-inter text-[13px] hover:bg-[#4338a8] transition-colors ml-auto"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add password
+          </button>
+        </div>
+
+        {/* Password Table or Empty State */}
+        {filteredPasswords.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center rounded-lg border border-[#DAD8CE] bg-[#F8F9F5]">
+            <KeyRound className="w-10 h-10 text-[#DAD8CE] mb-3" />
+            <p className="font-heading text-xl text-[#20221F] mb-1">No credentials found</p>
+            <p className="font-inter text-[13px] text-[#6B6E64] mb-4">
+              Try adjusting your filters or add a new credential entry.
+            </p>
+            <button
+              onClick={handleOpenCreate}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#4F46C7] text-white font-inter text-[13px] hover:bg-[#4338a8] transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" /> Add password
+            </button>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-[#DAD8CE] bg-[#F8F9F5] overflow-hidden">
+            <table className="w-full min-w-[640px]">
+              <thead className="bg-[#EEF0EA] border-b border-[#DAD8CE]">
+                <tr>
+                  <th className="text-left px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest text-[#6B6E64]">
+                    Label
+                  </th>
+                  <th className="text-left px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest text-[#6B6E64]">
+                    Username
+                  </th>
+                  <th className="text-left px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest text-[#6B6E64]">
+                    Secret
+                  </th>
+                  <th className="text-left px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest text-[#6B6E64]">
+                    Category
+                  </th>
+                  {isGlobalView && (
+                    <th className="text-left px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest text-[#6B6E64]">
+                      Project
+                    </th>
+                  )}
+                  <th className="text-right px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest text-[#6B6E64] w-24">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPasswords.map((pw) => {
+                  const isRevealed = !!revealedIds[pw._id];
+                  const secret = decryptedSecrets[pw._id] || "";
+                  const project = projects.find((p) => p._id === pw.projectId);
 
                   return (
-                    <TableRow key={item._id} className="border-border/50 border-b">
-                      {/* Label & URL */}
-                      <TableCell className="py-4 align-middle">
-                        <div className="flex min-w-0 flex-col">
-                          <span className="text-foreground truncate text-sm font-semibold">
-                            {item.label}
-                          </span>
-                          {item.url && (
-                            <a
-                              href={item.url.startsWith("http") ? item.url : `https://${item.url}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary inline-flex items-center gap-0.5 truncate font-mono text-[10px] hover:underline"
-                            >
-                              {item.url}
-                              <ExternalLink className="h-2.5 w-2.5" />
-                            </a>
-                          )}
-                        </div>
-                      </TableCell>
+                    <tr
+                      key={pw._id}
+                      className="border-b border-[#DAD8CE] last:border-0 hover:bg-[#EEF0EA] transition-colors"
+                    >
+                      {/* Label */}
+                      <td className="px-4 py-3 max-w-[220px]">
+                        <p className="font-inter text-[13px] font-medium text-[#20221F] break-all">
+                          {pw.label}
+                        </p>
+                        {pw.url && (
+                          <a
+                            href={pw.url.startsWith("http") ? pw.url : `https://${pw.url}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-inter text-[11px] text-[#4F46C7] hover:underline inline-flex items-center gap-0.5 mt-0.5 break-all"
+                          >
+                            {pw.url}
+                            <ExternalLink className="w-2.5 h-2.5" />
+                          </a>
+                        )}
+                      </td>
 
                       {/* Username */}
-                      <TableCell className="text-foreground py-4 align-middle font-mono text-xs font-medium">
-                        {item.username}
-                      </TableCell>
+                      <td className="px-4 py-3 font-mono text-[12px] text-[#6B6E64] break-all max-w-[150px]">
+                        {pw.username || "—"}
+                      </td>
 
-                      {/* Secret Mask / Reveal Toggle */}
-                      <TableCell className="py-4 align-middle">
+                      {/* Secret */}
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-foreground bg-muted/20 border-border/30 inline-block min-w-28 rounded border px-2 py-1 text-center font-mono text-xs tracking-wide select-all">
-                            {revealPendingId === item._id ? (
-                              <Loader2 className="text-primary mx-auto h-3 w-3 animate-spin" />
+                          <span className="font-mono text-[12px] text-[#20221F] max-w-[160px] truncate break-all">
+                            {revealPendingId === pw._id ? (
+                              <Loader2 className="w-3 h-3 animate-spin text-[#4F46C7]" />
                             ) : isRevealed ? (
                               secret
                             ) : (
-                              "••••••••"
+                              "••••••••••"
                             )}
                           </span>
-
-                          {/* Reveal eye action */}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleReveal(item)}
-                            className="text-muted-foreground hover:text-foreground hover:bg-muted/50 h-7 w-7"
-                            disabled={revealPendingId === item._id}
-                            title={isRevealed ? "Hide password" : "Show password"}
+                          <button
+                            onClick={() => handleReveal(pw)}
+                            className="text-[#6B6E64] hover:text-[#4F46C7] transition-colors shrink-0"
+                            title={isRevealed ? "Hide" : "Reveal"}
                           >
                             {isRevealed ? (
-                              <EyeOff className="h-3.5 w-3.5" />
+                              <EyeOff className="w-3.5 h-3.5" />
                             ) : (
-                              <Eye className="h-3.5 w-3.5" />
+                              <Eye className="w-3.5 h-3.5" />
                             )}
-                          </Button>
-
-                          {/* Copy clipboard action */}
+                          </button>
                           {isRevealed && secret && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleCopy(item._id, secret)}
-                              className="text-muted-foreground h-7 w-7 hover:bg-emerald-50/10 hover:text-emerald-600"
-                              title="Copy to clipboard"
+                            <button
+                              onClick={() => handleCopy(pw._id, secret)}
+                              className="text-[#6B6E64] hover:text-[#3F7A5C] transition-colors shrink-0"
+                              title="Copy"
                             >
-                              {copiedId === item._id ? (
-                                <Check className="h-3.5 w-3.5 text-emerald-500" />
+                              {copiedId === pw._id ? (
+                                <Check className="w-3.5 h-3.5 text-[#3F7A5C]" />
                               ) : (
-                                <Copy className="h-3.5 w-3.5" />
+                                <Copy className="w-3.5 h-3.5" />
                               )}
-                            </Button>
+                            </button>
                           )}
                         </div>
-                      </TableCell>
-
-                      {/* Linked Project (Global page only) */}
-                      {isGlobalView && (
-                        <TableCell className="py-4 align-middle">
-                          {project ? (
-                            <Badge
-                              variant="outline"
-                              className="text-primary border-primary/20 max-w-28 truncate bg-transparent font-mono text-[9px] uppercase"
-                            >
-                              {project.name}
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className="text-muted-foreground border-border bg-transparent font-mono text-[9px] uppercase"
-                            >
-                              <Lock className="mr-0.5 h-2 w-2" /> Global
-                            </Badge>
-                          )}
-                        </TableCell>
-                      )}
+                      </td>
 
                       {/* Category */}
-                      <TableCell className="py-4 align-middle">
-                        <span className="text-muted-foreground bg-muted/65 rounded-full px-2 py-0.5 font-mono text-[10px] uppercase">
-                          {CATEGORY_LABELS[item.category] || item.category}
+                      <td className="px-4 py-3">
+                        <span className="font-mono text-[10px] uppercase tracking-wide text-[#6B6E64] bg-[#EEF0EA] px-2 py-0.5 rounded">
+                          {CATEGORY_LABELS[pw.category] || pw.category}
                         </span>
-                      </TableCell>
+                      </td>
 
-                      {/* Item Actions */}
-                      <TableCell className="py-3 text-right align-middle">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenEdit(item)}
-                            className="text-muted-foreground hover:text-foreground hover:bg-muted/50 h-8 w-8"
-                            title="Edit credential"
+                      {/* Project (Global view) */}
+                      {isGlobalView && (
+                        <td className="px-4 py-3 font-inter text-[12px] text-[#6B6E64]">
+                          {project ? (
+                            <Link
+                              href={ROUTES.PROJECT_PASSWORDS(project._id) as any}
+                              className="text-[#4F46C7] hover:underline break-all"
+                            >
+                              {project.name}
+                            </Link>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                      )}
+
+                      {/* Actions */}
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleOpenEdit(pw)}
+                            className="text-[#6B6E64] hover:text-[#20221F] transition-colors p-1"
+                            title="Edit"
                           >
-                            <Edit2 className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenDelete(item._id)}
-                            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8"
-                            title="Delete credential"
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleOpenDelete(pw._id)}
+                            className="text-[#6B6E64] hover:text-[#B14B4B] transition-colors p-1"
+                            title="Delete"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
-                      </TableCell>
-                    </TableRow>
+                      </td>
+                    </tr>
                   );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-      {/* Password Edit / Create Dialog */}
-      <PasswordDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        defaultProjectId={projectId}
-        item={selectedItem}
-      />
+        {/* Dialogs */}
+        <PasswordDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          defaultProjectId={projectId}
+          item={selectedItem}
+        />
 
-      {/* Delete Confirmation */}
-      <ConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title="Delete Credential"
-        description="Are you sure you want to permanently delete this password entry from the vault? This cannot be undone."
-        confirmLabel="Delete"
-        onConfirm={handleConfirmDelete}
-        loading={isDeletePending}
-      />
-    </div>
+        <ConfirmDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          title="Delete Credential"
+          description="Are you sure you want to permanently delete this password entry from the vault? This cannot be undone."
+          confirmLabel="Delete"
+          onConfirm={handleConfirmDelete}
+          loading={isDeletePending}
+        />
+      </div>
+    </>
   );
 }

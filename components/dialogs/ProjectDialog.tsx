@@ -84,7 +84,7 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false} className="sm:max-w-md">
+      <DialogContent showCloseButton={false} className="sm:max-w-md max-w-[90vw] overflow-hidden break-words">
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogHeader>
             <DialogTitle>{isEdit ? "Edit Project" : "New Project"}</DialogTitle>
@@ -118,6 +118,21 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
                 {...register("description")}
               />
               {errors.description?.message && <FieldError>{errors.description.message}</FieldError>}
+            </Field>
+
+            <Field data-invalid={!!errors.status}>
+              <FieldLabel htmlFor="status">Status</FieldLabel>
+              <select
+                id="status"
+                disabled={isPending}
+                className="w-full bg-[#EEF0EA] border border-[#DAD8CE] focus:border-[#4F46C7] rounded-md h-9 px-3 py-1 font-inter text-[14px] focus:outline-none"
+                {...register("status")}
+              >
+                <option value="active">Active</option>
+                <option value="on-hold">On Hold</option>
+                <option value="archived">Archived</option>
+              </select>
+              {errors.status?.message && <FieldError>{errors.status.message}</FieldError>}
             </Field>
           </div>
 

@@ -15,6 +15,8 @@ export interface ProjectData {
   status: "active" | "on-hold" | "archived";
   createdAt: string;
   updatedAt: string;
+  noteCount?: number;
+  taskCount?: number;
 }
 
 class ApiError extends Error {

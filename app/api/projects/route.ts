@@ -20,7 +20,20 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status") || undefined;
 
     const projects = await ProjectService.list(session.userId, { status });
-    return successResponse(projects);
+    const NoteModel = (await import("@/models/Note")).Note;
+    const TaskModel = (await import("@/models/Task")).Task;
+    const projectsWithCounts = await Promise.all(
+      projects.map(async (p) => {
+        const noteCount = await NoteModel.countDocuments({ projectId: p._id });
+        const taskCount = await TaskModel.countDocuments({ projectId: p._id });
+        return {
+          ...p.toObject(),
+          noteCount,
+          taskCount,
+        };
+      })
+    );
+    return successResponse(projectsWithCounts);
   } catch {
     return internalErrorResponse();
   }

@@ -1,6 +1,4 @@
 import type { LucideIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 interface EmptyStateProps {
   icon: LucideIcon;
@@ -15,20 +13,41 @@ interface EmptyStateProps {
 
 /**
  * Consistent empty state used by every module.
- * Shows an icon, title, description, and optional CTA button.
+ * Uses reference design tokens for full visual consistency.
  */
 export function EmptyState({ icon: Icon, title, description, action, className }: EmptyStateProps) {
   return (
-    <div className={cn("flex flex-col items-center justify-center py-16 text-center", className)}>
-      <div className="bg-muted mb-4 flex h-12 w-12 items-center justify-center rounded-full">
-        <Icon className="text-muted-foreground h-5 w-5" />
+    <div
+      className={`flex flex-col items-center justify-center py-16 text-center ${className ?? ""}`}
+    >
+      <div
+        className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl"
+        style={{ backgroundColor: "var(--accent-dim)" }}
+      >
+        <Icon className="h-5 w-5" style={{ color: "var(--accent-color)" }} />
       </div>
-      <h3 className="text-foreground mb-1 text-sm font-medium">{title}</h3>
-      <p className="text-muted-foreground mb-5 max-w-xs text-sm">{description}</p>
+      <h3
+        className="mb-1 font-heading text-[16px] font-medium"
+        style={{ color: "var(--text)" }}
+      >
+        {title}
+      </h3>
+      <p
+        className="mb-5 max-w-xs font-inter text-[13px]"
+        style={{ color: "var(--text-dim)" }}
+      >
+        {description}
+      </p>
       {action && (
-        <Button size="sm" onClick={action.onClick}>
+        <button
+          onClick={action.onClick}
+          className="flex items-center gap-1.5 rounded-md px-4 py-2 font-inter text-sm transition-colors"
+          style={{ backgroundColor: "var(--accent-color)", color: "#fff" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "#4338a8"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--accent-color)"; }}
+        >
           {action.label}
-        </Button>
+        </button>
       )}
     </div>
   );

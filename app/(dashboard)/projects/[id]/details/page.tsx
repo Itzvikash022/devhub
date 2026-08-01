@@ -27,13 +27,81 @@ import {
   Grid,
   Save,
   X,
+  ArrowUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ProjectSection, ProjectField } from "@/hooks/useProjects";
+import { ProjectDialog } from "@/components/dialogs/ProjectDialog";
+import {
+  MoveSectionsDialog,
+  getEstimatedCardHeight,
+} from "@/components/dialogs/MoveSectionsDialog";
+
+function renderFieldValue(field: ProjectField) {
+  switch (field.type) {
+    case "link":
+      const href = field.value.startsWith("http") ? field.value : `https://${field.value}`;
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary inline-flex max-w-full items-center gap-1 font-sans text-xs hover:underline break-words"
+        >
+          <span className="truncate">{field.value}</span>
+          <ExternalLink className="h-3 w-3 shrink-0" />
+        </a>
+      );
+    case "list":
+      const listItems = field.value
+        .split("\n")
+        .map((item) => item.trim())
+        .filter(Boolean);
+      if (listItems.length === 0)
+        return <span className="text-muted-foreground/60 text-xs">—</span>;
+      return (
+        <ul className="mt-1 list-disc space-y-1 pl-4">
+          {listItems.map((item, lIdx) => (
+            <li key={lIdx} className="text-foreground font-sans text-xs break-words">
+              {item}
+            </li>
+          ))}
+        </ul>
+      );
+    case "tag[]":
+      const tags = field.value
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+      if (tags.length === 0)
+        return <span className="text-muted-foreground/60 text-xs">—</span>;
+      return (
+        <div className="mt-1 flex flex-wrap gap-1.5">
+          {tags.map((tag, tIdx) => (
+            <Badge
+              key={tIdx}
+              variant="secondary"
+              className="px-1.5 py-0.5 font-mono text-[9px] break-words"
+            >
+              {tag}
+            </Badge>
+          ))}
+        </div>
+      );
+    default:
+      return (
+        <span className="text-foreground font-sans text-xs break-words whitespace-pre-wrap">
+          {field.value || <span className="text-muted-foreground/50 italic">empty</span>}
+        </span>
+      );
+  }
+}
 
 export default function ProjectDetailsTab() {
   const { id: projectId } = useParams() as { id: string };
   const [isEditing, setIsEditing] = useState(false);
+  const [projectEditOpen, setProjectEditOpen] = useState(false);
+  const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const [editableSections, setEditableSections] = useState<ProjectSection[]>([]);
 
   // Queries & Mutations
@@ -55,7 +123,7 @@ export default function ProjectDetailsTab() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-4xl space-y-6 p-6">
+      <div className="mx-auto max-w-6xl space-y-6 p-6">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <div className="space-y-6 md:col-span-2">
             <Card className="bg-card border-border border">
@@ -210,8 +278,25 @@ export default function ProjectDetailsTab() {
     );
   };
 
+  // Compute identical shortest-column 2-column distribution for 1:1 layout match with modal
+  const allSections = customDetails?.sections || [];
+  const col1: ProjectSection[] = [];
+  const col2: ProjectSection[] = [];
+  const colHeights = [0, 0];
+
+  allSections.forEach((sec) => {
+    const h = getEstimatedCardHeight(sec);
+    if (colHeights[0] <= colHeights[1]) {
+      col1.push(sec);
+      colHeights[0] += h + 24;
+    } else {
+      col2.push(sec);
+      colHeights[1] += h + 24;
+    }
+  });
+
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
+    <div className="mx-auto max-w-6xl space-y-6 p-6">
       {/* Header controls for details tab */}
       <div className="border-border/55 flex items-center justify-between border-b pb-3">
         <div>
@@ -239,13 +324,23 @@ export default function ProjectDetailsTab() {
               </Button>
             </>
           ) : (
-            customDetails?.sections &&
-            customDetails.sections.length > 0 && (
+            <>
+              {allSections.length > 1 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setMoveDialogOpen(true)}
+                  className="h-8 gap-1.5 text-xs text-[#4F46C7] border-[#4F46C7]/30 hover:bg-[#4F46C7]/10"
+                >
+                  <ArrowUpDown className="h-3.5 w-3.5" />
+                  Move Sections
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={handleStartEdit}>
                 <Edit3 className="mr-1.5 h-3.5 w-3.5" />
                 Edit Details
               </Button>
-            )
+            </>
           )}
         </div>
       </div>
@@ -411,186 +506,182 @@ export default function ProjectDetailsTab() {
         </div>
       ) : (
         /* ─── READ MODE ─── */
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          {/* Main Content Areas */}
-          <div className="space-y-6 md:col-span-2">
-            {/* Project description card */}
-            <Card className="bg-card border-border border">
-              <CardHeader className="pb-3">
-                <CardTitle className="font-heading text-base font-semibold">
-                  About Project
-                </CardTitle>
-                <CardDescription>General workspace summary and details.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-foreground text-sm leading-relaxed whitespace-pre-wrap">
-                  {project.description ||
-                    'No project description provided. Click "Edit" in the header to add one.'}
-                </p>
-              </CardContent>
+        <div className="space-y-6">
+          {/* Top Row: About Project and Workspace Metadata side-by-side */}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3 items-stretch">
+            {/* About Project Card (takes 2 columns) */}
+            <Card className="bg-card border-border border md:col-span-2 flex flex-col justify-between">
+              <div>
+                <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+                  <div>
+                    <CardTitle className="font-heading text-base font-semibold">
+                      About Project
+                    </CardTitle>
+                    <CardDescription>General workspace summary and details.</CardDescription>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setProjectEditOpen(true)}
+                    className="h-8 gap-1 text-xs"
+                  >
+                    <Edit3 className="h-3.5 w-3.5" />
+                    Edit About
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-foreground text-sm leading-relaxed whitespace-pre-wrap break-words">
+                    {project.description ||
+                      'No project description provided. Click "Edit About" above to add one.'}
+                  </p>
+                </CardContent>
+              </div>
             </Card>
 
-            {/* Custom Structured Sections */}
-            {!customDetails?.sections || customDetails.sections.length === 0 ? (
-              <Card className="bg-card border-border border">
-                <CardContent className="p-0">
-                  <EmptyState
-                    icon={Grid}
-                    title="No structured details"
-                    description="Configure custom metadata columns like Tech Stack, Server Configurations, or Client Contact Info."
-                    action={{
-                      label: "Add details",
-                      onClick: handleStartEdit,
-                    }}
-                  />
+            {/* Workspace Metadata Card (takes 1 column) */}
+            <Card className="bg-card border-border border flex flex-col justify-between">
+              <div>
+                <CardHeader className="pb-3">
+                  <CardTitle className="font-heading text-base font-semibold">
+                    Workspace Metadata
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-muted-foreground space-y-3 font-mono text-xs">
+                  <div className="border-border/50 flex items-center gap-2 border-b pb-2">
+                    <Info className="text-muted-foreground h-4 w-4 shrink-0" />
+                    <span className="text-foreground font-semibold">Status:</span>
+                    <span className="ml-auto">
+                      <ProjectStatusBadge status={project.status} />
+                    </span>
+                  </div>
+                  <div className="border-border/50 flex items-center gap-2 border-b pb-2">
+                    <Calendar className="text-muted-foreground h-4 w-4 shrink-0" />
+                    <span className="text-foreground font-semibold">Created:</span>
+                    <span className="ml-auto">
+                      {new Date(project.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="border-border/50 flex items-center gap-2 border-b pb-2">
+                    <Clock className="text-muted-foreground h-4 w-4 shrink-0" />
+                    <span className="text-foreground font-semibold">Updated:</span>
+                    <span className="ml-auto">
+                      {new Date(project.updatedAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <User className="text-muted-foreground h-4 w-4 shrink-0" />
+                    <span className="text-foreground font-semibold">ID:</span>
+                    <span className="ml-auto max-w-[120px] truncate" title={project._id}>
+                      {project._id}
+                    </span>
+                  </div>
                 </CardContent>
-              </Card>
-            ) : (
-              customDetails.sections.map((section, idx) => (
-                <Card key={idx} className="bg-card border-border border">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="font-heading text-base font-semibold">
-                      {section.heading}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {section.fields.length === 0 ? (
-                      <p className="text-muted-foreground text-xs italic">
-                        No fields in this section.
-                      </p>
-                    ) : (
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        {section.fields.map((field, fIdx) => {
-                          const displayValue = () => {
-                            switch (field.type) {
-                              case "link":
-                                const href = field.value.startsWith("http")
-                                  ? field.value
-                                  : `https://${field.value}`;
-                                return (
-                                  <a
-                                    href={href}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-primary inline-flex max-w-full items-center gap-1 truncate font-sans text-xs hover:underline"
-                                  >
-                                    <span className="truncate">{field.value}</span>
-                                    <ExternalLink className="h-3 w-3 shrink-0" />
-                                  </a>
-                                );
-                              case "list":
-                                const listItems = field.value
-                                  .split("\n")
-                                  .map((item) => item.trim())
-                                  .filter(Boolean);
-                                if (listItems.length === 0)
-                                  return (
-                                    <span className="text-muted-foreground/60 text-xs">—</span>
-                                  );
-                                return (
-                                  <ul className="mt-1 list-disc space-y-1 pl-4">
-                                    {listItems.map((item, lIdx) => (
-                                      <li key={lIdx} className="text-foreground font-sans text-xs">
-                                        {item}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                );
-                              case "tag[]":
-                                const tags = field.value
-                                  .split(",")
-                                  .map((t) => t.trim())
-                                  .filter(Boolean);
-                                if (tags.length === 0)
-                                  return (
-                                    <span className="text-muted-foreground/60 text-xs">—</span>
-                                  );
-                                return (
-                                  <div className="mt-1 flex flex-wrap gap-1.5">
-                                    {tags.map((tag, tIdx) => (
-                                      <Badge
-                                        key={tIdx}
-                                        variant="secondary"
-                                        className="px-1.5 py-0.5 font-mono text-[9px]"
-                                      >
-                                        {tag}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                );
-                              default:
-                                return (
-                                  <span className="text-foreground font-sans text-xs break-words whitespace-pre-wrap">
-                                    {field.value || (
-                                      <span className="text-muted-foreground/50 italic">empty</span>
-                                    )}
-                                  </span>
-                                );
-                            }
-                          };
+              </div>
+            </Card>
+          </div>
 
-                          return (
-                            <div
-                              key={fIdx}
-                              className="border-border/25 space-y-1.5 border-b pb-2 md:border-b-0 md:pb-0"
-                            >
+          {/* 1:1 Identical Masonry Layout Engine matching Modal Preview */}
+          {allSections.length === 0 ? (
+            <Card className="bg-card border-border border">
+              <CardContent className="p-0">
+                <EmptyState
+                  icon={Grid}
+                  title="No structured details"
+                  description="Configure custom metadata columns like Tech Stack, Server Configurations, or Client Contact Info."
+                  action={{
+                    label: "Add details",
+                    onClick: handleStartEdit,
+                  }}
+                />
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+              {/* Column 1 */}
+              <div className="space-y-6">
+                {col1.map((section, idx) => (
+                  <Card key={idx} className="bg-card border-border border">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="font-heading text-base font-semibold">
+                        {section.heading}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {section.fields.length === 0 ? (
+                        <p className="text-muted-foreground text-xs italic">
+                          No fields in this section.
+                        </p>
+                      ) : (
+                        <div className="divide-y divide-[#DAD8CE]/60">
+                          {section.fields.map((field, fIdx) => (
+                            <div key={fIdx} className="py-3 first:pt-0 last:pb-0 space-y-1">
                               <span className="text-muted-foreground block font-mono text-[10px] font-semibold tracking-wider uppercase">
                                 {field.key}
                               </span>
-                              <div>{displayValue()}</div>
+                              <div>{renderFieldValue(field)}</div>
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
 
-          {/* Right Workspace Metadata Sidebar */}
-          <div className="space-y-6">
-            <Card className="bg-card border-border border">
-              <CardHeader className="pb-3">
-                <CardTitle className="font-heading text-base font-semibold">
-                  Workspace Metadata
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-muted-foreground space-y-4 font-mono text-xs">
-                <div className="border-border/50 flex items-center gap-2 border-b pb-2">
-                  <Info className="text-muted-foreground h-4 w-4 shrink-0" />
-                  <span className="text-foreground font-semibold">Status:</span>
-                  <span className="ml-auto">
-                    <ProjectStatusBadge status={project.status} />
-                  </span>
-                </div>
-                <div className="border-border/50 flex items-center gap-2 border-b pb-2">
-                  <Calendar className="text-muted-foreground h-4 w-4 shrink-0" />
-                  <span className="text-foreground font-semibold">Created:</span>
-                  <span className="ml-auto">
-                    {new Date(project.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-                <div className="border-border/50 flex items-center gap-2 border-b pb-2">
-                  <Clock className="text-muted-foreground h-4 w-4 shrink-0" />
-                  <span className="text-foreground font-semibold">Updated:</span>
-                  <span className="ml-auto">
-                    {new Date(project.updatedAt).toLocaleDateString()}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <User className="text-muted-foreground h-4 w-4 shrink-0" />
-                  <span className="text-foreground font-semibold">ID:</span>
-                  <span className="ml-auto max-w-[120px] truncate" title={project._id}>
-                    {project._id}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+              {/* Column 2 */}
+              <div className="space-y-6">
+                {col2.map((section, idx) => (
+                  <Card key={idx} className="bg-card border-border border">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="font-heading text-base font-semibold">
+                        {section.heading}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {section.fields.length === 0 ? (
+                        <p className="text-muted-foreground text-xs italic">
+                          No fields in this section.
+                        </p>
+                      ) : (
+                        <div className="divide-y divide-[#DAD8CE]/60">
+                          {section.fields.map((field, fIdx) => (
+                            <div key={fIdx} className="py-3 first:pt-0 last:pb-0 space-y-1">
+                              <span className="text-muted-foreground block font-mono text-[10px] font-semibold tracking-wider uppercase">
+                                {field.key}
+                              </span>
+                              <div>{renderFieldValue(field)}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
+
+      {/* Project Edit Dialog */}
+      <ProjectDialog
+        open={projectEditOpen}
+        onOpenChange={setProjectEditOpen}
+        project={{
+          id: project._id,
+          name: project.name,
+          description: project.description,
+          status: project.status,
+        }}
+      />
+
+      {/* Reorder / Move Sections Dialog */}
+      <MoveSectionsDialog
+        open={moveDialogOpen}
+        onOpenChange={setMoveDialogOpen}
+        projectId={projectId}
+        sections={allSections}
+      />
     </div>
   );
 }

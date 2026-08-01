@@ -1,100 +1,76 @@
 "use client";
 
-import { useEffect, useState, useRef, useTransition, useMemo } from "react";
-import { BlockNoteEditor as CoreBlockNoteEditor } from "@blocknote/core";
+import { useEffect, useRef } from "react";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
-import { Check, Loader2, AlertCircle } from "lucide-react";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/shadcn/style.css";
 
-interface BlockNoteEditorProps {
+interface SimpleTextEditorProps {
   initialContent: string;
-  onSave: (content: string) => Promise<void>;
+  onSave: (markdown: string) => Promise<void> | void;
 }
 
-export function BlockNoteEditor({ initialContent, onSave }: BlockNoteEditorProps) {
-  const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "error">("saved");
-  const [, startTransition] = useTransition();
+export function BlockNoteEditor({ initialContent, onSave }: SimpleTextEditorProps) {
+  const editor = useCreateBlockNote();
+  const loadedRef = useRef(false);
+  const onSaveRef = useRef(onSave);
 
-  // Parse initial content safely once
-  const parsedContent = useMemo(() => {
-    try {
-      const parsed = initialContent ? JSON.parse(initialContent) : undefined;
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : undefined;
-    } catch {
-      return undefined;
-    }
-  }, [initialContent]);
+  // Keep latest onSave ref
+  useEffect(() => {
+    onSaveRef.current = onSave;
+  }, [onSave]);
 
-  // Initialize editor
-  const editor: CoreBlockNoteEditor = useCreateBlockNote({
-    initialContent: parsedContent,
-  });
+  const initialContentRef = useRef(initialContent);
 
-  // Track save timeout reference
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Trigger autosave when content changes
-  const handleContentChange = () => {
-    setSaveStatus("saving");
-
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    saveTimeoutRef.current = setTimeout(() => {
-      const currentBlocks = editor.document;
-      const contentString = JSON.stringify(currentBlocks);
-
-      startTransition(async () => {
+  // Load initial content into editor blocks ONCE on mount
+  useEffect(() => {
+    async function loadContent() {
+      const contentToLoad = initialContentRef.current;
+      if (editor && contentToLoad && !loadedRef.current) {
+        loadedRef.current = true;
         try {
-          await onSave(contentString);
-          setSaveStatus("saved");
+          // Attempt markdown parse first
+          const blocks = await editor.tryParseMarkdownToBlocks(contentToLoad);
+          if (blocks && blocks.length > 0) {
+            editor.replaceBlocks(editor.document, blocks);
+          }
         } catch {
-          setSaveStatus("error");
+          // If JSON blocks string fallback
+          try {
+            const jsonBlocks = JSON.parse(contentToLoad);
+            if (Array.isArray(jsonBlocks) && jsonBlocks.length > 0) {
+              editor.replaceBlocks(editor.document, jsonBlocks);
+            }
+          } catch {}
         }
-      });
-    }, 1000); // 1-second debounce
+      }
+    }
+    loadContent();
+  }, [editor]); // intentionally run once per editor instance
+
+  const handleChange = () => {
+    if (!editor) return;
+
+    // Defer callback execution outside ProseMirror's active DOM transaction loop
+    setTimeout(async () => {
+      try {
+        const markdown = await editor.blocksToMarkdownLossy(editor.document);
+        onSaveRef.current(markdown);
+      } catch (err) {
+        console.warn("Error converting blocks to markdown:", err);
+      }
+    }, 0);
   };
 
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, []);
-
   return (
-    <div className="flex h-full flex-col">
-      {/* Editor Save Status Header bar */}
-      <div className="border-border bg-muted/20 text-muted-foreground flex items-center justify-end border-b px-6 py-1.5 font-mono text-xs select-none">
-        {saveStatus === "saving" && (
-          <span className="text-primary flex items-center gap-1">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Saving changes...
-          </span>
-        )}
-        {saveStatus === "saved" && (
-          <span className="flex items-center gap-1 text-emerald-600">
-            <Check className="h-3.5 w-3.5" />
-            Saved to cloud
-          </span>
-        )}
-        {saveStatus === "error" && (
-          <span className="text-destructive flex items-center gap-1">
-            <AlertCircle className="h-3.5 w-3.5" />
-            Autosave failed
-          </span>
-        )}
-      </div>
-
-      {/* Editor Workspace */}
-      <div className="flex-1 overflow-y-auto px-4 py-6">
-        <BlockNoteView editor={editor} onChange={handleContentChange} className="min-h-[300px]" />
-      </div>
+    <div className="w-full h-full min-h-[calc(100vh-220px)] p-4 bg-[#F8F9F5] font-inter text-[#20221F] overflow-y-auto">
+      <BlockNoteView
+        editor={editor}
+        onChange={handleChange}
+        theme="light"
+        className="min-h-[calc(100vh-260px)] font-inter"
+      />
     </div>
   );
 }

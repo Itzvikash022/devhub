@@ -22,6 +22,13 @@ export const ROUTES = {
   // Global Vault
   PASSWORDS: "/passwords",
   DOCUMENTS: "/documents",
+  IMAGES: "/images",
+
+  // Tools
+  TOOLS_MARKDOWN: "/tools/markdown",
+  TOOLS_HTML: "/tools/html",
+  TOOLS_JSON: "/tools/json",
+  TOOLS_WHITEBOARD: "/tools/whiteboard",
 
   // Calendar
   CALENDAR: "/calendar",

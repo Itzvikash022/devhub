@@ -165,7 +165,7 @@ export function TaskDialog({ open, onOpenChange, projectId, task }: TaskDialogPr
                     id="description"
                     placeholder="Describe task details, goals, or specifications..."
                     disabled={isPending}
-                    className="h-20 resize-none"
+                    className="h-20 resize-none break-all break-words"
                     {...register("description")}
                   />
                   {errors.description?.message && (

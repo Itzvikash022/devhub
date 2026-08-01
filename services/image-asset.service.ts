@@ -131,6 +131,22 @@ export class ImageAssetService {
   }
 
   /**
+   * Lists all image assets across all projects owned by the user.
+   */
+  static async listAll(userId: string): Promise<IImageAssetDocument[]> {
+    const projects = await ProjectService.list(userId);
+    const projectIds = projects.map((p: IImageAssetDocument | any) => p._id.toString());
+    const list = await ImageAssetRepository.findAllByProjectIds(projectIds);
+
+    return list.map((item) => {
+      if (item.isEncrypted) {
+        item.r2Key = "";
+      }
+      return item;
+    });
+  }
+
+  /**
    * Generates a short-lived download/view URL for non-encrypted images.
    */
   static async getDownloadUrl(userId: string, id: string): Promise<string> {

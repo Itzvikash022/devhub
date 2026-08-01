@@ -45,47 +45,63 @@
 
 /* ─── Light Theme — DevHub Color System ────────────────────────────────────── */
 :root {
-  /* Content area: warm off-white from UI refs */
-  --background: oklch(0.968 0.005 85);
-  --foreground: oklch(0.16 0.005 240);
+  /* DevHub color tokens */
+  --ink: #171A1F;
+  --ink-soft: #23262D;
+  --ink-line: #33363E;
+  --paper: #EEF0EA;
+  --paper-raised: #F8F9F5;
+  --line: #DAD8CE;
+  --text: #20221F;
+  --text-dim: #6B6E64;
+  --accent-color: #4F46C7;
+  --accent-dim: #EBE9F9;
+  --amber: #B8792E;
+  --green: #3F7A5C;
+  --red: #B14B4B;
+
+  /* shadcn variables mapped to DevHub tokens */
+  --background: #EEF0EA;
+  --foreground: #20221F;
 
   /* Cards sit slightly above the background */
-  --card: oklch(0.99 0 0);
-  --card-foreground: oklch(0.16 0.005 240);
+  --card: #F8F9F5;
+  --card-foreground: #20221F;
 
-  --popover: oklch(0.99 0 0);
-  --popover-foreground: oklch(0.16 0.005 240);
+  --popover: #F8F9F5;
+  --popover-foreground: #20221F;
 
-  /* Purple primary accent — from UI refs */
-  --primary: oklch(0.52 0.22 273);
-  --primary-foreground: oklch(0.99 0 0);
+  /* Purple primary accent */
+  --primary: #4F46C7;
+  --primary-foreground: #FFFFFF;
 
-  --secondary: oklch(0.94 0.003 85);
-  --secondary-foreground: oklch(0.3 0.005 240);
+  --secondary: #DAD8CE;
+  --secondary-foreground: #20221F;
 
-  --muted: oklch(0.94 0.003 85);
-  --muted-foreground: oklch(0.52 0.008 240);
+  --muted: #DAD8CE;
+  --muted-foreground: #6B6E64;
 
-  --accent: oklch(0.94 0.003 85);
-  --accent-foreground: oklch(0.16 0.005 240);
+  --accent: #EBE9F9;
+  --accent-foreground: #4F46C7;
 
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: #B14B4B;
+  --destructive-foreground: #FFFFFF;
 
-  --border: oklch(0.89 0.003 85);
-  --input: oklch(0.89 0.003 85);
-  --ring: oklch(0.52 0.22 273);
+  --border: #DAD8CE;
+  --input: #DAD8CE;
+  --ring: #4F46C7;
 
   --radius: 0.5rem;
 
   /* Sidebar: dark per UI refs */
-  --sidebar: oklch(0.145 0.008 240);
-  --sidebar-foreground: oklch(0.88 0.005 240);
-  --sidebar-primary: oklch(0.52 0.22 273);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.22 0.01 240);
-  --sidebar-accent-foreground: oklch(0.88 0.005 240);
-  --sidebar-border: oklch(0.22 0.008 240);
-  --sidebar-ring: oklch(0.52 0.22 273);
+  --sidebar: #171A1F;
+  --sidebar-foreground: #EEF0EA;
+  --sidebar-primary: #4F46C7;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #23262D;
+  --sidebar-accent-foreground: #EEF0EA;
+  --sidebar-border: #33363E;
+  --sidebar-ring: #4F46C7;
 
   /* DevHub custom font variables */
   --font-inter: "Inter", system-ui, sans-serif;
@@ -97,10 +113,14 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   body {
-    @apply bg-background text-foreground;
+    background-color: var(--paper);
+    color: var(--text);
     font-family: var(--font-inter);
     font-feature-settings: "cv11", "ss01";
     -webkit-font-smoothing: antialiased;
@@ -131,12 +151,12 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: oklch(0.8 0.003 85);
+    background: var(--line);
     border-radius: 3px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: oklch(0.7 0.003 85);
+    background: var(--text-dim);
   }
 }
 
@@ -162,4 +182,133 @@
       border-color 150ms ease,
       opacity 150ms ease;
   }
+
+  /* Activity ledger line */
+  .ledger-line::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 20px;
+    bottom: -8px;
+    width: 1px;
+    background-color: var(--line);
+  }
+
+  /* Status chip dot colors */
+  .dot-active { color: var(--green); }
+  .dot-on-hold { color: var(--amber); }
+  .dot-archived { color: var(--text-dim); }
+  .dot-done { color: var(--green); }
+  .dot-in-progress { color: var(--primary); }
+  .dot-todo { color: var(--text-dim); }
+  .dot-blocked { color: var(--red); }
+  .dot-high { color: var(--red); }
+  .dot-medium { color: var(--amber); }
+  .dot-low { color: var(--text-dim); }
+}
+
+/* ─── Full Markdown, GFM Tables & HTML Renderer Styles ─────────────────────── */
+.markdown-content h1 {
+  font-family: var(--font-newsreader), serif;
+  font-size: 1.65rem;
+  font-weight: 600;
+  color: #20221F;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+.markdown-content h2 {
+  font-family: var(--font-newsreader), serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #20221F;
+  margin-top: 1.25rem;
+  margin-bottom: 0.6rem;
+  border-bottom: 1px solid #DAD8CE;
+  padding-bottom: 0.25rem;
+}
+.markdown-content h3 {
+  font-family: var(--font-newsreader), serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #20221F;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+.markdown-content p {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.65;
+}
+.markdown-content ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.markdown-content ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.markdown-content li {
+  margin-top: 0.2rem;
+  margin-bottom: 0.2rem;
+}
+.markdown-content blockquote {
+  border-left: 3px solid #4F46C7;
+  background: rgba(238, 240, 234, 0.6);
+  padding: 0.5rem 1rem;
+  margin: 0.75rem 0;
+  color: #6B6E64;
+  border-radius: 0 0.375rem 0.375rem 0;
+}
+.markdown-content code:not(pre code) {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 0.8125rem;
+  background: #EEF0EA;
+  border: 1px solid #DAD8CE;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  color: #4F46C7;
+}
+.markdown-content pre {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 0.8125rem;
+  background: #EEF0EA;
+  border: 1px solid #DAD8CE;
+  border-radius: 0.5rem;
+  padding: 0.875rem 1rem;
+  overflow-x: auto;
+  margin: 0.75rem 0;
+  line-height: 1.6;
+  white-space: pre;
+}
+.markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.8125rem;
+}
+.markdown-content th,
+.markdown-content td {
+  border: 1px solid #DAD8CE;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+.markdown-content th {
+  background: #EEF0EA;
+  font-weight: 600;
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.markdown-content tr:nth-child(even) {
+  background: rgba(248, 249, 245, 0.5);
+}
+.markdown-content hr {
+  border: 0;
+  border-top: 1px solid #DAD8CE;
+  margin: 1.5rem 0;
 }

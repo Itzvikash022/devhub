@@ -25,9 +25,23 @@ export async function GET() {
       .sort({ updatedAt: -1 })
       .exec();
 
-    const recentProjects = userProjects.slice(0, 5);
+    const recentProjectsRaw = userProjects.slice(0, 3);
+    const recentProjects = await Promise.all(
+      recentProjectsRaw.map(async (p) => {
+        const noteCount = await Note.countDocuments({ projectId: p._id });
+        const taskCount = await Task.countDocuments({ projectId: p._id });
+        return {
+          _id: p._id.toString(),
+          name: p.name,
+          description: p.description,
+          status: p.status,
+          updatedAt: p.updatedAt,
+          noteCount,
+          taskCount,
+        };
+      })
+    );
 
-    // Get list of project IDs to query associated notes, tasks, etc.
     const projectIds = userProjects.map((p) => p._id);
 
     // 2. Fetch upcoming deadlines (next 7 days starting from today's start)

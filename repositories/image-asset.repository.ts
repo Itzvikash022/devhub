@@ -29,6 +29,22 @@ export class ImageAssetRepository {
   }
 
   /**
+   * Finds all image assets across a list of project IDs.
+   */
+  static async findAllByProjectIds(projectIds: string[]): Promise<IImageAssetDocument[]> {
+    if (projectIds.length === 0) return [];
+    await connectToDatabase();
+    const objectIds = projectIds
+      .map((id) => objectIdSchema.safeParse(id))
+      .filter((r) => r.success)
+      .map((r) => new mongoose.Types.ObjectId(r.data));
+
+    return ImageAsset.find({ projectId: { $in: objectIds } })
+      .sort({ createdAt: -1 })
+      .exec();
+  }
+
+  /**
    * Creates a new image asset record.
    */
   static async create(imageData: {

@@ -2,33 +2,34 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { FolderPlus, Search, FolderClosed, RefreshCcw } from "lucide-react";
+import { Plus, Search, Layers, FileText, CheckSquare, Archive } from "lucide-react";
 import { useProjectsList } from "@/hooks/useProjects";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { ProjectStatusBadge } from "@/components/shared/StatusBadge";
-import { EmptyState } from "@/components/shared/EmptyState";
+import { StatusChip } from "@/components/shared/StatusChip";
 import { ProjectDialog } from "@/components/dialogs/ProjectDialog";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton";
+import { SetPageHeader } from "@/components/layout/SetPageHeader";
 import { ROUTES } from "@/constants/routes.constants";
-import { cn } from "@/lib/utils";
+import { formatDistanceToNow } from "date-fns";
 
-type ProjectStatusFilter = "all" | "active" | "on-hold" | "archived";
+type FilterStatus = "all" | "active" | "on-hold" | "archived";
+
+const statusFilters: { value: FilterStatus; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "active", label: "Active" },
+  { value: "on-hold", label: "On Hold" },
+  { value: "archived", label: "Archived" },
+];
 
 export default function ProjectsPage() {
-  const [statusFilter, setStatusFilter] = useState<ProjectStatusFilter>("all");
+  const [filter, setFilter] = useState<FilterStatus>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Fetch all projects for the user. We filter client-side for smooth search/tab transitions.
-  const { data: projects = [], isLoading, error, refetch } = useProjectsList();
+  const { data: projects = [], isLoading, error } = useProjectsList();
 
-  const filteredProjects = projects.filter((project) => {
+  const filtered = projects.filter((project) => {
     // 1. Status Filter
-    const matchesStatus = statusFilter === "all" || project.status === statusFilter;
+    const matchesStatus = filter === "all" || project.status === filter;
 
     // 2. Search Query
     const matchesSearch =
@@ -38,133 +39,163 @@ export default function ProjectsPage() {
     return matchesStatus && matchesSearch;
   });
 
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-[1100px] space-y-6 p-6">
+        {/* Header Loading */}
+        <div className="flex items-center justify-between pb-4">
+          <div className="space-y-2">
+            <div className="bg-muted h-7 w-32 animate-pulse rounded" />
+          </div>
+          <div className="bg-muted h-9 w-28 animate-pulse rounded" />
+        </div>
+
+        {/* Filters Loading */}
+        <div className="flex gap-2 mb-5">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-muted h-7 w-16 animate-pulse rounded-md" />
+          ))}
+        </div>
+
+        {/* Grid Loading */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-[#F8F9F5] border-[#DAD8CE] h-40 animate-pulse rounded-lg border" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-6">
-      {/* Page Header */}
-      <PageHeader
+    <>
+      <SetPageHeader
         title="Projects"
-        subtitle="Manage your workspaces and active side-projects."
         actions={
-          <Button onClick={() => setDialogOpen(true)}>
-            <FolderPlus className="mr-1.5 h-4 w-4" />
-            New Project
-          </Button>
+          <button
+            onClick={() => setDialogOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-inter text-[13px] transition-colors"
+            style={{ backgroundColor: "var(--accent-color)", color: "#fff" }}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.backgroundColor = "#4338a8")}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.backgroundColor = "var(--accent-color)")}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            New project
+          </button>
         }
       />
+      <div className="mx-auto max-w-[1100px] space-y-6 p-6 text-left">
 
-      {/* Filters and Search controls */}
-      <div className="border-border flex flex-col items-stretch justify-between gap-4 border-b pb-4 sm:flex-row sm:items-center">
-        <Tabs
-          value={statusFilter}
-          onValueChange={(val) => setStatusFilter(val as ProjectStatusFilter)}
-          className="w-full sm:w-auto"
-        >
-          <TabsList className="bg-muted/50 border-border border">
-            <TabsTrigger value="all" className="text-xs">
-              All
-            </TabsTrigger>
-            <TabsTrigger value="active" className="text-xs">
-              Active
-            </TabsTrigger>
-            <TabsTrigger value="on-hold" className="text-xs text-amber-600">
-              On-Hold
-            </TabsTrigger>
-            <TabsTrigger value="archived" className="text-xs text-zinc-500">
-              Archived
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+      {/* Filter and Search controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#DAD8CE] pb-4">
+        {/* Filter chips */}
+        <div className="flex flex-wrap items-center gap-2">
+          {statusFilters.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setFilter(f.value)}
+              className={`px-3 py-1 rounded-md font-mono text-[11px] tracking-wide uppercase border transition-colors ${
+                filter === f.value
+                  ? "bg-[#4F46C7] text-white border-[#4F46C7]"
+                  : "text-[#6B6E64] border-[#DAD8CE] bg-[#F8F9F5] hover:border-[#4F46C7] hover:text-[#4F46C7]"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+          <span className="ml-2 font-mono text-[11px] text-[#6B6E64] hidden sm:inline">
+            {filtered.length} project{filtered.length !== 1 ? "s" : ""}
+          </span>
+        </div>
 
+        {/* Search Input */}
         <div className="relative flex-1 sm:max-w-xs">
           <Search className="text-muted-foreground absolute top-2.5 left-2.5 h-4 w-4" />
           <Input
             placeholder="Search projects..."
-            className="bg-card pl-9"
+            className="bg-[#F8F9F5] border-[#DAD8CE] focus:border-[#4F46C7] focus:ring-0 pl-9 font-inter text-[14px] rounded-md"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
       </div>
 
-      {/* Projects Grid / Content area */}
-      {isLoading ? (
-        <div className="space-y-4">
-          <LoadingSkeleton rows={4} />
+      {/* Error state */}
+      {error && (
+        <div className="text-destructive p-6 text-center font-mono text-xs">
+          Failed to load project workspaces.
         </div>
-      ) : error ? (
-        <EmptyState
-          icon={RefreshCcw}
-          title="Failed to load projects"
-          description={error.message || "An unexpected network error occurred."}
-          action={{
-            label: "Retry Query",
-            onClick: () => refetch(),
-          }}
-        />
-      ) : filteredProjects.length === 0 ? (
-        <EmptyState
-          icon={FolderClosed}
-          title={
-            searchQuery
-              ? "No matching projects found"
-              : `No ${statusFilter !== "all" ? statusFilter : ""} projects yet`
-          }
-          description={
-            searchQuery
-              ? "Try adjusting your search filters or status tabs."
-              : "Kickstart your workspace by setting up your first project."
-          }
-          action={
-            !searchQuery && statusFilter === "all"
-              ? {
-                  label: "New Project",
-                  onClick: () => setDialogOpen(true),
-                }
-              : undefined
-          }
-        />
-      ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredProjects.map((project) => (
-            <Card
-              key={project._id}
-              className={cn(
-                "border-border bg-card border transition-shadow hover:shadow-md",
-                project.status === "archived" && "opacity-75"
-              )}
+      )}
+
+      {/* Empty State */}
+      {!error && filtered.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <div className="w-12 h-12 rounded-xl bg-[#EBE9F9] flex items-center justify-center mb-3">
+            <Layers className="w-6 h-6 text-[#4F46C7]" />
+          </div>
+          <p className="font-heading text-xl text-[#20221F] mb-1">No projects here</p>
+          <p className="font-inter text-[13px] text-[#6B6E64] mb-4">
+            {filter === "all"
+              ? "Create your first project to get started."
+              : `No projects with status "${filter}".`}
+          </p>
+          {filter === "all" && (
+            <button
+              onClick={() => setDialogOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-[#4F46C7] text-white font-inter text-sm"
             >
-              <CardHeader className="space-y-1.5 pb-2">
-                <div className="flex items-start justify-between gap-4">
-                  <Link
-                    href={ROUTES.PROJECT(project._id)}
-                    className="font-heading text-foreground truncate text-lg font-semibold hover:underline"
-                  >
-                    {project.name}
-                  </Link>
-                  <ProjectStatusBadge status={project.status} />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <CardDescription className="text-muted-foreground line-clamp-3 h-12 text-xs">
-                  {project.description || "No description provided."}
-                </CardDescription>
-                <div className="border-border/50 text-muted-foreground flex items-center justify-between border-t pt-3 font-mono text-[10px]">
-                  <span>Created: {new Date(project.createdAt).toLocaleDateString()}</span>
-                  <Link
-                    href={ROUTES.PROJECT(project._id)}
-                    className="text-primary font-semibold hover:underline"
-                  >
-                    Open Workspace →
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
+              <Plus className="w-4 h-4" />
+              New project
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Projects Grid */}
+      {!error && filtered.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map((project) => (
+            <Link
+              key={project._id}
+              href={ROUTES.PROJECT_NOTES(project._id) as any}
+              className="flex flex-col p-5 rounded-lg border border-[#DAD8CE] bg-[#F8F9F5] hover:border-[#4F46C7] transition-colors group"
+            >
+              <div className="flex items-start justify-between mb-2">
+                <h3 className="font-heading text-[17px] font-medium text-[#20221F] group-hover:text-[#4F46C7] transition-colors leading-tight truncate max-w-[180px]">
+                  {project.name}
+                </h3>
+                <StatusChip status={project.status as any} className="ml-2 shrink-0" />
+              </div>
+              <p className="font-inter text-[13px] text-[#6B6E64] flex-1 line-clamp-3 mb-4">
+                {project.description || "No description yet."}
+              </p>
+              <div className="border-t border-[#DAD8CE] pt-3 flex items-center gap-4 font-mono text-[11px] text-[#6B6E64]">
+                <span className="flex items-center gap-1">
+                  <FileText className="w-3 h-3" />
+                  {project.noteCount || 0}
+                </span>
+                <span className="flex items-center gap-1">
+                  <CheckSquare className="w-3 h-3" />
+                  {project.taskCount || 0}
+                </span>
+                {project.status === "archived" && (
+                  <span className="flex items-center gap-1">
+                    <Archive className="w-3 h-3" />
+                    archived
+                  </span>
+                )}
+                <span className="ml-auto">
+                  {formatDistanceToNow(new Date(project.updatedAt), { addSuffix: true })}
+                </span>
+              </div>
+            </Link>
           ))}
         </div>
       )}
 
-      {/* Dialog for Creation/Editing */}
+      {/* Dialog for creation */}
       <ProjectDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </div>
+    </>
   );
 }

@@ -1,23 +1,14 @@
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-// ─── Project Status ───────────────────────────────────────────────────────────
+// ─── Project Status Chip ───────────────────────────────────────────────────────
+// Uses the same dot-style as StatusChip for visual consistency.
 
 type ProjectStatus = "active" | "on-hold" | "archived";
 
-const PROJECT_STATUS_CONFIG: Record<ProjectStatus, { label: string; className: string }> = {
-  active: {
-    label: "ACTIVE",
-    className: "bg-transparent text-emerald-600 border-emerald-200 font-mono text-[10px]",
-  },
-  "on-hold": {
-    label: "ON-HOLD",
-    className: "bg-transparent text-amber-600 border-amber-200 font-mono text-[10px]",
-  },
-  archived: {
-    label: "ARCHIVED",
-    className: "bg-transparent text-muted-foreground border-border font-mono text-[10px]",
-  },
+const PROJECT_STATUS_CONFIG: Record<ProjectStatus, { label: string; dotColor: string }> = {
+  active:    { label: "active",   dotColor: "#3F7A5C" },
+  "on-hold": { label: "on-hold",  dotColor: "#B8792E" },
+  archived:  { label: "archived", dotColor: "#6B6E64" },
 };
 
 interface ProjectStatusBadgeProps {
@@ -28,40 +19,28 @@ interface ProjectStatusBadgeProps {
 export function ProjectStatusBadge({ status, className }: ProjectStatusBadgeProps) {
   const config = PROJECT_STATUS_CONFIG[status] ?? PROJECT_STATUS_CONFIG.active;
   return (
-    <Badge variant="outline" className={cn("h-5 px-1.5 py-0", config.className, className)}>
-      + {config.label}
-    </Badge>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 font-mono text-[11px] tracking-wide uppercase",
+        className
+      )}
+      style={{ color: "#6B6E64" }}
+    >
+      <span style={{ color: config.dotColor, fontSize: "8px", lineHeight: 1 }}>●</span>
+      {config.label}
+    </span>
   );
 }
 
-// ─── Task Status ──────────────────────────────────────────────────────────────
+// ─── Task Status Chip ─────────────────────────────────────────────────────────
 
 type TaskStatus = "todo" | "in-progress" | "blocked" | "done";
 
-const TASK_STATUS_CONFIG: Record<
-  TaskStatus,
-  { label: string; dotClass: string; textClass: string }
-> = {
-  todo: {
-    label: "TODO",
-    dotClass: "bg-zinc-400",
-    textClass: "text-zinc-600",
-  },
-  "in-progress": {
-    label: "IN-PROGRESS",
-    dotClass: "bg-blue-400",
-    textClass: "text-blue-600",
-  },
-  blocked: {
-    label: "BLOCKED",
-    dotClass: "bg-red-400",
-    textClass: "text-red-600",
-  },
-  done: {
-    label: "DONE",
-    dotClass: "bg-emerald-400",
-    textClass: "text-emerald-600",
-  },
+const TASK_STATUS_CONFIG: Record<TaskStatus, { label: string; dotColor: string }> = {
+  todo:          { label: "todo",        dotColor: "#6B6E64" },
+  "in-progress": { label: "in-progress", dotColor: "#4F46C7" },
+  blocked:       { label: "blocked",     dotColor: "#B14B4B" },
+  done:          { label: "done",        dotColor: "#3F7A5C" },
 };
 
 interface TaskStatusBadgeProps {
@@ -74,37 +53,25 @@ export function TaskStatusBadge({ status, className }: TaskStatusBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 font-mono text-[10px] font-medium tracking-wide uppercase",
-        config.textClass,
+        "inline-flex items-center gap-1 font-mono text-[11px] tracking-wide uppercase",
         className
       )}
+      style={{ color: "#6B6E64" }}
     >
-      <span className={cn("h-1.5 w-1.5 rounded-full", config.dotClass)} />
+      <span style={{ color: config.dotColor, fontSize: "8px", lineHeight: 1 }}>●</span>
       {config.label}
     </span>
   );
 }
 
-// ─── Priority Badge ───────────────────────────────────────────────────────────
+// ─── Priority Chip ────────────────────────────────────────────────────────────
 
 type Priority = "low" | "medium" | "high";
 
-const PRIORITY_CONFIG: Record<Priority, { label: string; dotClass: string; textClass: string }> = {
-  low: {
-    label: "LOW",
-    dotClass: "bg-zinc-400",
-    textClass: "text-zinc-500",
-  },
-  medium: {
-    label: "MEDIUM",
-    dotClass: "bg-amber-400",
-    textClass: "text-amber-600",
-  },
-  high: {
-    label: "HIGH",
-    dotClass: "bg-red-400",
-    textClass: "text-red-600",
-  },
+const PRIORITY_CONFIG: Record<Priority, { label: string; dotColor: string }> = {
+  low:    { label: "low",    dotColor: "#6B6E64" },
+  medium: { label: "medium", dotColor: "#B8792E" },
+  high:   { label: "high",   dotColor: "#B14B4B" },
 };
 
 interface PriorityBadgeProps {
@@ -117,12 +84,12 @@ export function PriorityBadge({ priority, className }: PriorityBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 font-mono text-[10px] font-medium tracking-wide uppercase",
-        config.textClass,
+        "inline-flex items-center gap-1 font-mono text-[11px] tracking-wide uppercase",
         className
       )}
+      style={{ color: "#6B6E64" }}
     >
-      <span className={cn("h-1.5 w-1.5 rounded-full", config.dotClass)} />
+      <span style={{ color: config.dotColor, fontSize: "8px", lineHeight: 1 }}>◆</span>
       {config.label}
     </span>
   );

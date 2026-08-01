@@ -9,6 +9,10 @@ import {
   Calendar,
   KeyRound,
   FileText,
+  Image as ImageIcon,
+  FileCode,
+  Braces,
+  PenTool,
   ChevronRight,
   ChevronLeft,
   Code2,
@@ -48,6 +52,14 @@ const NAV_ITEMS: NavItem[] = [
 const VAULT_ITEMS: NavItem[] = [
   { label: "Passwords", href: ROUTES.PASSWORDS, icon: KeyRound },
   { label: "Documents", href: ROUTES.DOCUMENTS, icon: FileText },
+  { label: "Images", href: ROUTES.IMAGES, icon: ImageIcon },
+];
+
+const TOOLS_ITEMS: NavItem[] = [
+  { label: "Markdown Preview", href: ROUTES.TOOLS_MARKDOWN, icon: FileCode },
+  { label: "HTML Preview", href: ROUTES.TOOLS_HTML, icon: Code2 },
+  { label: "JSON Formatter", href: ROUTES.TOOLS_JSON, icon: Braces },
+  { label: "Whiteboard", href: ROUTES.TOOLS_WHITEBOARD, icon: PenTool },
 ];
 
 const STATUS_COLORS: Record<string, string> = {
@@ -171,6 +183,25 @@ export function Sidebar({ userName = "User", userEmail = "" }: SidebarProps) {
             )}
             <nav className="space-y-0.5">
               {VAULT_ITEMS.map((item) => (
+                <SidebarNavItem
+                  key={item.href}
+                  item={item}
+                  active={isActive(item.href)}
+                  collapsed={collapsed}
+                />
+              ))}
+            </nav>
+          </section>
+
+          {/* Tools */}
+          <section>
+            {!collapsed && (
+              <p className="mb-1 px-2 text-[10px] font-medium tracking-widest text-[oklch(0.4_0.005_240)] uppercase">
+                Tools
+              </p>
+            )}
+            <nav className="space-y-0.5">
+              {TOOLS_ITEMS.map((item) => (
                 <SidebarNavItem
                   key={item.href}
                   item={item}

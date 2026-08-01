@@ -275,9 +275,11 @@ export function DocumentUploadDialog({
                 <FieldLabel htmlFor="projectId">Link to Project</FieldLabel>
                 <select
                   id="projectId"
-                  disabled={isPending}
+                  disabled={isPending || (!!defaultProjectId && !isEdit)}
                   {...register("projectId")}
-                  className="border-input bg-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+                  className={`border-input bg-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm transition-colors focus-visible:ring-1 focus-visible:outline-none ${
+                    defaultProjectId && !isEdit ? "bg-muted cursor-not-allowed opacity-80" : ""
+                  }`}
                 >
                   <option value="">None (Global Vault Only)</option>
                   {projects.map((p) => (

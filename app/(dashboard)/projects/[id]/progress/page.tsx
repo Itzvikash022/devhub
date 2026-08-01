@@ -2,7 +2,13 @@
 
 import { useState, useMemo } from "react";
 import { useParams } from "next/navigation";
-import { useTasksList, useUpdateTask, useDeleteTask, TaskData } from "@/hooks/useTasks";
+import {
+  useTasksList,
+  useUpdateTask,
+  useDeleteTask,
+  useAddComment,
+  TaskData,
+} from "@/hooks/useTasks";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TaskStatusBadge, PriorityBadge } from "@/components/shared/StatusBadge";
 import { TaskDialog } from "@/components/dialogs/TaskDialog";
@@ -20,8 +26,6 @@ import {
 } from "@/components/ui/table";
 import {
   CheckSquare,
-  ChevronDown,
-  ChevronUp,
   Edit2,
   MessageSquare,
   Plus,
@@ -29,7 +33,10 @@ import {
   Trash2,
   Calendar,
   AlertCircle,
+  Send,
+  Loader2,
 } from "lucide-react";
+import { format } from "date-fns";
 
 export default function ProgressTab() {
   const { id: projectId } = useParams() as { id: string };
@@ -42,7 +49,7 @@ export default function ProgressTab() {
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("createdAt-desc");
 
-  // Expandable description state
+  // Expandable description & comment state
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
 
   // Dialog state
@@ -83,12 +90,14 @@ export default function ProgressTab() {
     setDialogOpen(true);
   };
 
-  const handleOpenEdit = (task: TaskData) => {
+  const handleOpenEdit = (task: TaskData, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setSelectedTask(task);
     setDialogOpen(true);
   };
 
-  const handleOpenDelete = (id: string) => {
+  const handleOpenDelete = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setTaskToDelete(id);
     setDeleteOpen(true);
   };
@@ -253,12 +262,12 @@ export default function ProgressTab() {
             </div>
           </div>
 
-          {/* Tasks Table */}
+          {/* Task List Table */}
           <div className="border-border bg-card overflow-x-auto rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow className="border-border/50 bg-muted/10 border-b hover:bg-transparent">
-                  <TableHead className="w-10 text-center font-mono text-[10px] font-semibold tracking-wider">
+                  <TableHead className="w-12 text-center font-mono text-[10px] font-semibold tracking-wider">
                     Done
                   </TableHead>
                   <TableHead className="font-mono text-[10px] font-semibold tracking-wider">
@@ -303,43 +312,52 @@ export default function ProgressTab() {
                       <TableRow key={task._id} className="border-border/50 group border-b">
                         {/* Checkbox done toggle */}
                         <TableCell className="py-4 text-center align-top">
-                          <input
-                            type="checkbox"
-                            checked={task.status === "done"}
-                            onChange={() => handleToggleDone(task)}
-                            className="border-input text-primary focus:ring-ring accent-primary h-4 w-4 cursor-pointer rounded align-middle"
-                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleDone(task);
+                            }}
+                            className={`mt-0.5 w-4 h-4 rounded border shrink-0 flex items-center justify-center transition-colors ${
+                              task.status === "done"
+                                ? "bg-[#4F46C7] border-[#4F46C7]"
+                                : "border-[#DAD8CE] hover:border-[#4F46C7] bg-[#EEF0EA]"
+                            }`}
+                            aria-label={`Mark task as ${task.status === "done" ? "todo" : "done"}`}
+                          >
+                            {task.status === "done" && (
+                              <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10">
+                                <path
+                                  d="M1.5 5l2.5 2.5 4.5-5"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            )}
+                          </button>
                         </TableCell>
 
-                        {/* Title and collapsible description */}
-                        <TableCell className="py-4 align-top">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              {task.description && (
-                                <button
-                                  onClick={() => toggleExpand(task._id)}
-                                  className="text-muted-foreground hover:text-foreground hover:bg-muted shrink-0 rounded p-0.5"
-                                  title="Toggle description"
-                                >
-                                  {isExpanded ? (
-                                    <ChevronUp className="h-3.5 w-3.5" />
-                                  ) : (
-                                    <ChevronDown className="h-3.5 w-3.5" />
-                                  )}
-                                </button>
-                              )}
+                        {/* Title and collapsible details box */}
+                        <TableCell className="py-4 align-top max-w-md">
+                          <div className="space-y-2">
+                            {/* Clickable title expands/collapses the box (no arrow) */}
+                            <div
+                              onClick={() => toggleExpand(task._id)}
+                              className="flex items-center gap-2 cursor-pointer select-none group/title"
+                            >
                               <span
-                                onClick={() => handleOpenEdit(task)}
-                                className={`hover:text-primary cursor-pointer font-sans text-sm font-medium transition-colors ${
+                                className={`font-sans text-sm font-medium transition-colors break-all break-words ${
                                   task.status === "done"
                                     ? "text-muted-foreground line-through"
-                                    : "text-foreground"
+                                    : "text-foreground group-hover/title:text-[#4F46C7]"
                                 }`}
                               >
                                 {task.title}
                               </span>
 
-                              {/* Comment bubble indicator */}
+                              {/* Comment count badge */}
                               {task.comments.length > 0 && (
                                 <span className="text-muted-foreground bg-muted/65 inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 font-mono text-[9px]">
                                   <MessageSquare className="h-2.5 w-2.5" />
@@ -348,11 +366,54 @@ export default function ProgressTab() {
                               )}
                             </div>
 
-                            {/* Expanded description block */}
-                            {isExpanded && task.description && (
-                              <p className="text-muted-foreground bg-muted/15 border-border/40 max-w-xl rounded-md border p-2 text-xs leading-relaxed whitespace-pre-wrap">
-                                {task.description}
-                              </p>
+                            {/* Expanded Card Body: Description + Comments + Add Comment */}
+                            {isExpanded && (
+                              <div className="bg-[#F8F9F5] border border-[#DAD8CE] rounded-md p-3 space-y-3 max-w-xl text-xs">
+                                {/* Description */}
+                                {task.description ? (
+                                  <p className="text-[#20221F] font-inter leading-relaxed break-all break-words whitespace-pre-wrap">
+                                    {task.description}
+                                  </p>
+                                ) : (
+                                  <p className="text-[#6B6E64] font-inter italic text-[11px]">
+                                    No description provided.
+                                  </p>
+                                )}
+
+                                {/* Comments Section with Timestamps */}
+                                <div className="border-t border-[#DAD8CE] pt-2.5 space-y-2">
+                                  <span className="font-mono text-[10px] uppercase text-[#6B6E64] font-semibold tracking-wider block">
+                                    Comments ({task.comments.length})
+                                  </span>
+
+                                  {task.comments.length > 0 ? (
+                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                      {task.comments.map((comment, idx) => (
+                                        <div
+                                          key={comment._id || idx}
+                                          className="bg-[#EEF0EA] border border-[#DAD8CE] rounded p-2 text-xs space-y-0.5"
+                                        >
+                                          <div className="flex items-center justify-between text-[10px] font-mono text-[#6B6E64]">
+                                            <span className="font-medium">{comment.userName || "Team Member"}</span>
+                                            <span>
+                                              {format(new Date(comment.createdAt), "MMM d, yyyy h:mm a")}
+                                            </span>
+                                          </div>
+                                          <p className="font-inter text-[12px] text-[#20221F] break-all break-words whitespace-pre-wrap">
+                                            {comment.text}
+                                          </p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : null}
+
+                                  {/* Direct Inline Add Comment Form */}
+                                  <TaskInlineCommentForm
+                                    projectId={projectId}
+                                    taskId={task._id}
+                                  />
+                                </div>
+                              </div>
                             )}
                           </div>
                         </TableCell>
@@ -383,29 +444,31 @@ export default function ProgressTab() {
                               {new Date(task.dueDate).toLocaleDateString()}
                             </span>
                           ) : (
-                            <span className="text-muted-foreground/40 font-sans text-xs italic">
-                              —
-                            </span>
+                            <span className="text-muted-foreground/60 font-mono text-xs">—</span>
                           )}
                         </TableCell>
 
                         {/* Assignee */}
-                        <TableCell className="py-4 align-top font-sans text-xs">
+                        <TableCell className="py-4 align-top">
                           {task.assignee ? (
-                            <span className="text-foreground font-medium">{task.assignee}</span>
+                            <span className="text-foreground font-sans text-xs font-medium truncate max-w-[120px] block">
+                              {task.assignee}
+                            </span>
                           ) : (
-                            <span className="text-muted-foreground/45 italic">Unassigned</span>
+                            <span className="text-muted-foreground/60 font-sans text-xs italic">
+                              Unassigned
+                            </span>
                           )}
                         </TableCell>
 
-                        {/* Action buttons */}
+                        {/* Actions */}
                         <TableCell className="py-3 text-right align-top">
                           <div className="flex items-center justify-end gap-1">
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleOpenEdit(task)}
-                              className="text-muted-foreground hover:text-foreground hover:bg-muted/50 h-8 w-8"
+                              onClick={(e) => handleOpenEdit(task, e)}
+                              className="text-muted-foreground hover:text-foreground hover:bg-muted h-8 w-8"
                               title="Edit task"
                             >
                               <Edit2 className="h-3.5 w-3.5" />
@@ -413,7 +476,7 @@ export default function ProgressTab() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleOpenDelete(task._id)}
+                              onClick={(e) => handleOpenDelete(task._id, e)}
                               className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8"
                               title="Delete task"
                             >
@@ -431,7 +494,7 @@ export default function ProgressTab() {
         </div>
       )}
 
-      {/* Task Creation / Edit Dialog */}
+      {/* Task Edit / Create Dialog */}
       <TaskDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
@@ -439,16 +502,61 @@ export default function ProgressTab() {
         task={selectedTask}
       />
 
-      {/* Confirm Deletion */}
+      {/* Delete Confirmation */}
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="Delete Task"
-        description="Are you sure you want to permanently delete this task? Associated calendar event deadlines will also be removed."
+        description="Are you sure you want to delete this task? This action cannot be undone."
         confirmLabel="Delete"
         onConfirm={handleConfirmDelete}
         loading={isDeletePending}
       />
     </div>
+  );
+}
+
+/**
+ * Small inline comment poster component for expanded task cards
+ */
+function TaskInlineCommentForm({ projectId, taskId }: { projectId: string; taskId: string }) {
+  const [text, setText] = useState("");
+  const { mutate: addComment, isPending } = useAddComment(projectId, taskId);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!text.trim()) return;
+    addComment(
+      { text: text.trim() },
+      {
+        onSuccess: () => setText(""),
+      }
+    );
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex items-center gap-1.5 pt-1">
+      <input
+        type="text"
+        placeholder="Write a comment..."
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        disabled={isPending}
+        className="flex-1 bg-background border border-[#DAD8CE] rounded px-2.5 py-1 font-inter text-xs text-[#20221F] focus:outline-none focus:border-[#4F46C7]"
+      />
+      <button
+        type="submit"
+        disabled={isPending || !text.trim()}
+        className="px-2.5 py-1 rounded bg-[#4F46C7] text-white font-inter text-xs hover:bg-[#4338a8] transition-colors disabled:opacity-50 flex items-center gap-1 shrink-0"
+      >
+        {isPending ? (
+          <Loader2 className="w-3 h-3 animate-spin" />
+        ) : (
+          <>
+            <Send className="w-3 h-3" /> Post
+          </>
+        )}
+      </button>
+    </form>
   );
 }

@@ -2,64 +2,52 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  LayoutDashboard,
-  Calendar,
-  ListTodo,
   FileText,
-  BookOpen,
   CheckSquare,
   Plus,
-  ChevronRight,
   ArrowRight,
-  History,
+  Layers,
 } from "lucide-react";
 import { useDashboardData } from "@/hooks/useDashboard";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { ProjectDialog } from "@/components/dialogs/ProjectDialog";
 import { ROUTES } from "@/constants/routes.constants";
-import { formatDate, formatRelativeTime } from "@/utils/formatDate";
+import { StatusChip } from "@/components/shared/StatusChip";
+import { Button } from "@/components/ui/button";
+import { SetPageHeader } from "@/components/layout/SetPageHeader";
+import { formatRelativeTime } from "@/utils/formatDate";
+import { format, formatDistanceToNow } from "date-fns";
 
-const DEADLINE_COLORS: Record<string, string> = {
-  personal: "border-l-blue-500",
-  milestone: "border-l-amber-500",
-  deadline: "border-l-rose-500",
-  meeting: "border-l-emerald-500",
-  release: "border-l-purple-500",
-};
-
-const DEADLINE_BG: Record<string, string> = {
-  personal: "bg-blue-500/10 text-blue-500",
-  milestone: "bg-amber-500/10 text-amber-500",
-  deadline: "bg-rose-500/10 text-rose-500",
-  meeting: "bg-emerald-500/10 text-emerald-500",
-  release: "bg-purple-500/10 text-purple-500",
-};
-
-const TASK_STATUS_COLORS: Record<string, string> = {
-  todo: "bg-zinc-500/15 text-zinc-400 border-zinc-500/25",
-  "in-progress": "bg-blue-500/10 text-blue-500 border-blue-500/20",
-  blocked: "bg-rose-500/10 text-rose-500 border-rose-500/20",
-  done: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-};
-
-const TASK_STATUS_LABELS: Record<string, string> = {
-  todo: "Todo",
-  "in-progress": "In Progress",
-  blocked: "Blocked",
-  done: "Done",
-};
+// Stable timestamp — computed once at module load, not during render
+const NOW = Date.now();
 
 export default function DashboardPage() {
   const { data, isLoading, error } = useDashboardData();
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Task inline completion mutation
+  const { mutate: updateTask } = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const res = await fetch(`/api/tasks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error("Failed to update task");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+    },
+  });
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-6xl space-y-6 p-6">
+      <div className="mx-auto max-w-[1280px] space-y-6 p-6">
         {/* Header Loading */}
         <div className="space-y-2">
           <div className="bg-muted h-7 w-48 animate-pulse rounded" />
@@ -67,19 +55,18 @@ export default function DashboardPage() {
         </div>
 
         {/* Project Cards Loading */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="bg-muted border-border h-28 animate-pulse rounded-lg border" />
+            <div key={i} className="bg-[#F8F9F5] border-[#DAD8CE] h-28 animate-pulse rounded-lg border" />
           ))}
         </div>
 
         {/* Layout Split Loading */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="space-y-6 lg:col-span-2">
-            <div className="bg-muted border-border h-64 animate-pulse rounded-lg border" />
-          </div>
-          <div className="space-y-6">
-            <div className="bg-muted border-border h-64 animate-pulse rounded-lg border" />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2 bg-[#F8F9F5] border-[#DAD8CE] h-96 animate-pulse rounded-lg border" />
+          <div className="space-y-4">
+            <div className="bg-[#F8F9F5] border-[#DAD8CE] h-48 animate-pulse rounded-lg border" />
+            <div className="bg-[#F8F9F5] border-[#DAD8CE] h-48 animate-pulse rounded-lg border" />
           </div>
         </div>
       </div>
@@ -88,7 +75,9 @@ export default function DashboardPage() {
 
   if (error || !data) {
     return (
-      <div className="text-destructive p-6 text-center">Failed to load dashboard metrics.</div>
+      <div className="text-destructive p-6 text-center font-mono text-xs">
+        Failed to load dashboard metrics.
+      </div>
     );
   }
 
@@ -98,337 +87,300 @@ export default function DashboardPage() {
     setProjectDialogOpen(true);
   };
 
-  // Render project-empty states dynamically
-  if (recentProjects.length === 0) {
+  const handleToggleTask = (id: string, currentStatus: string) => {
+    const status = currentStatus === "done" ? "todo" : "done";
+    updateTask({ id, status });
+  };
+
+  function urgencyColor(dueDate: string) {
+    const diff = new Date(dueDate).getTime() - NOW;
+    const days = diff / (1000 * 60 * 60 * 24);
+    if (days < 0 || days < 3) return "text-[#B14B4B]";
+    if (days < 7) return "text-[#B8792E]";
+    return "text-[#20221F]";
+  }
+
+  function getActivityText(activity: any) {
+    const title = `"${activity.title}"`;
+    if (activity.type === "note") {
+      return `Updated note ${title}`;
+    }
+    if (activity.type === "task") {
+      if (activity.status === "done") {
+        return `Marked task ${title} as done`;
+      }
+      if (activity.status === "in-progress") {
+        return `Updated task ${title} to in-progress`;
+      }
+      return `Updated task ${title}`;
+    }
+    if (activity.type === "document") {
+      return `Uploaded document ${title}`;
+    }
+    return `Modified ${activity.type} ${title}`;
+  }
+
+  const isEmptyState = recentProjects.length === 0;
+
+  if (isEmptyState) {
     return (
-      <div className="mx-auto max-w-6xl space-y-6 p-6">
-        <div className="mb-1">
-          <h1 className="font-heading text-foreground text-2xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground text-sm">
-            {new Date().toLocaleDateString(undefined, {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
-          </p>
+      <>
+        <SetPageHeader
+          title="Dashboard"
+          subtitle={format(new Date(), "EEEE, d MMMM yyyy")}
+          actions={
+            <button
+              onClick={handleCreateProjectClick}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-inter text-[13px] transition-colors"
+              style={{ backgroundColor: "var(--accent-color)", color: "#fff" }}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.backgroundColor = "#4338a8")}
+              onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.backgroundColor = "var(--accent-color)")}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              New project
+            </button>
+          }
+        />
+        <div className="flex-1 flex items-center justify-center p-8 min-h-[80vh]">
+          <div className="text-center max-w-sm">
+            <div className="w-16 h-16 rounded-2xl bg-[#EBE9F9] flex items-center justify-center mx-auto mb-4">
+              <Layers className="w-8 h-8 text-[#4F46C7]" />
+            </div>
+            <h2 className="font-heading text-2xl text-[#20221F] mb-2">No projects yet</h2>
+            <p className="text-[#6B6E64] font-inter text-sm mb-6">
+              Create your first project to start tracking notes, tasks, deployments, and more.
+            </p>
+            <Button
+              onClick={handleCreateProjectClick}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[#4F46C7] text-white font-inter text-sm hover:bg-[#4338a8] transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Create your first project
+            </Button>
+            <ProjectDialog open={projectDialogOpen} onOpenChange={setProjectDialogOpen} />
+          </div>
         </div>
-
-        <Card className="bg-card border-border mt-12 border">
-          <CardContent className="p-0">
-            <EmptyState
-              icon={LayoutDashboard}
-              title="Welcome to DevHub!"
-              description="To get started, create your first project workspace. This will unlock notes, tasks, vaults, and calendar features."
-              action={{
-                label: "Create First Project",
-                onClick: handleCreateProjectClick,
-              }}
-            />
-          </CardContent>
-        </Card>
-
-        <ProjectDialog open={projectDialogOpen} onOpenChange={setProjectDialogOpen} />
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-6">
-      {/* Dashboard Top Header */}
-      <div className="border-border/55 flex flex-col justify-between gap-4 border-b pb-4 sm:flex-row sm:items-center">
-        <div>
-          <h1 className="font-heading text-foreground text-2xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground text-xs">
-            {new Date().toLocaleDateString(undefined, {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
-          </p>
-        </div>
-        <Button size="sm" onClick={handleCreateProjectClick} className="shrink-0 gap-1.5">
-          <Plus className="h-4 w-4" />
-          New Project
-        </Button>
-      </div>
+    <>
+      <SetPageHeader
+        title="Dashboard"
+        subtitle={format(new Date(), "EEEE, d MMMM yyyy")}
+        actions={
+          <button
+            onClick={handleCreateProjectClick}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-inter text-[13px] transition-colors"
+            style={{ backgroundColor: "var(--accent-color)", color: "#fff" }}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.backgroundColor = "#4338a8")}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.backgroundColor = "var(--accent-color)")}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            New project
+          </button>
+        }
+      />
+      <div className="mx-auto max-w-[1280px] space-y-6 p-6">
 
-      {/* Recent Project Workspace shortcuts */}
-      <div className="space-y-3 text-left">
-        <div className="flex items-center justify-between">
-          <h3 className="text-foreground font-mono text-sm font-semibold tracking-wider uppercase">
-            Recent Workspaces
-          </h3>
+      {/* Recent Projects Section */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-heading text-[17px] font-medium text-[#20221F]">Recent Projects</h2>
           <Link
             href={ROUTES.PROJECTS}
-            className="text-primary flex items-center gap-0.5 text-xs font-medium hover:underline"
+            className="flex items-center gap-1 font-mono text-[11px] text-[#6B6E64] hover:text-[#4F46C7] transition-colors"
           >
-            <span>All Projects</span>
-            <ChevronRight className="h-3.5 w-3.5" />
+            All projects <ArrowRight className="w-3 h-3" />
           </Link>
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {recentProjects.map((project) => (
-            <Link key={project._id} href={ROUTES.PROJECT_NOTES(project._id) as any}>
-              <Card className="bg-card border-border hover:border-primary/45 group relative flex h-28 cursor-pointer flex-col justify-between overflow-hidden border p-3 transition-all">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <h4 className="text-foreground group-hover:text-primary truncate text-sm font-semibold transition-colors">
-                      {project.name}
-                    </h4>
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
-                  </div>
-                  <p className="text-muted-foreground line-clamp-2 text-xs">
-                    {project.description || "No project description provided."}
-                  </p>
-                </div>
-                <div className="text-muted-foreground/60 border-border/30 flex items-center justify-between border-t pt-1.5 text-[10px]">
-                  <span className="font-mono tracking-wider uppercase">{project.status}</span>
-                  <span>{new Date(project.updatedAt).toLocaleDateString()}</span>
-                </div>
-              </Card>
+            <Link
+              key={project._id}
+              href={ROUTES.PROJECT_NOTES(project._id) as any}
+              className="block p-4 rounded-lg border border-[#DAD8CE] bg-[#F8F9F5] hover:border-[#4F46C7] transition-colors group"
+            >
+              <div className="flex items-start justify-between mb-2">
+                <h3 className="font-heading text-[16px] font-medium text-[#20221F] group-hover:text-[#4F46C7] transition-colors leading-tight">
+                  {project.name}
+                </h3>
+                <StatusChip status={project.status as any} className="shrink-0 ml-2" />
+              </div>
+              <p className="font-inter text-[12px] text-[#6B6E64] line-clamp-2 mb-3">
+                {project.description || "No project description provided."}
+              </p>
+              <div className="flex items-center gap-4 font-mono text-[11px] text-[#6B6E64]">
+                <span className="flex items-center gap-1">
+                  <FileText className="w-3 h-3" />
+                  {project.noteCount || 0} notes
+                </span>
+                <span className="flex items-center gap-1">
+                  <CheckSquare className="w-3 h-3" />
+                  {project.taskCount || 0} tasks
+                </span>
+                <span className="ml-auto">
+                  {formatRelativeTime(project.updatedAt)}
+                </span>
+              </div>
             </Link>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* Aggregated widgets grid split */}
-      <div className="grid grid-cols-1 gap-6 text-left lg:grid-cols-3">
-        {/* Left widgets */}
-        <div className="space-y-6 lg:col-span-2">
-          {/* Upcoming Deadlines next 7 days */}
-          <Card className="bg-card border-border border">
-            <CardContent className="space-y-4 p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Calendar className="text-primary h-4.5 w-4.5" />
-                  <h3 className="text-foreground text-sm font-semibold">Upcoming Deadlines</h3>
-                </div>
-                <Link
-                  href={ROUTES.CALENDAR}
-                  className="text-primary inline-flex items-center gap-0.5 text-xs font-medium hover:underline"
-                >
-                  <span>View Calendar</span>
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </Link>
-              </div>
+      {/* Bento grid: Activity + Deadlines + High Priority */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Activity Ledger — spans 2 cols */}
+        <section className="lg:col-span-2 rounded-lg border border-[#DAD8CE] bg-[#F8F9F5] p-5 text-left">
+          <h2 className="font-heading text-[17px] font-medium text-[#20221F] mb-4">Activity</h2>
+          <ol className="space-y-0">
+            {recentActivity.map((activity, i) => {
+              const project = recentProjects.find((p) => p._id === activity.projectId);
+              const isLast = i === recentActivity.length - 1;
+              const actionText = getActivityText(activity);
+              const redirectUrl =
+                activity.type === "note"
+                  ? activity.projectId
+                    ? ROUTES.PROJECT_NOTES(activity.projectId)
+                    : ROUTES.PROJECTS
+                  : activity.type === "task"
+                  ? activity.projectId
+                    ? ROUTES.PROJECT_PROGRESS(activity.projectId)
+                    : ROUTES.PROJECTS
+                  : activity.projectId
+                  ? ROUTES.PROJECT_DOCUMENTS(activity.projectId)
+                  : ROUTES.DOCUMENTS;
 
-              {upcomingDeadlines.length === 0 ? (
-                <p className="text-muted-foreground py-6 text-center text-xs">
-                  No upcoming deadlines or meetings scheduled in the next 7 days.
-                </p>
-              ) : (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {upcomingDeadlines.map((deadline) => {
-                    const project = recentProjects.find((p) => p._id === deadline.projectId);
+              return (
+                <li key={`${activity.type}-${activity.id}`} className="relative flex gap-3 pl-5">
+                  {/* Connecting line */}
+                  {!isLast && (
+                    <span className="absolute left-[7px] top-5 bottom-0 w-px bg-[#DAD8CE]" />
+                  )}
+                  {/* Commit dot */}
+                  <span className="absolute left-0 top-1 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-[#EEF0EA] border border-[#DAD8CE] shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#6B6E64]" />
+                  </span>
+                  <div className="pb-4 min-w-0 flex-1">
+                    <p className="font-inter text-[13px] text-[#20221F] leading-snug">
+                      {actionText}
+                      {project && (
+                        <Link
+                          href={redirectUrl as any}
+                          className="ml-1 text-[#4F46C7] hover:underline"
+                        >
+                          — {project.name}
+                        </Link>
+                      )}
+                    </p>
+                    <p className="font-mono text-[11px] text-[#6B6E64] mt-0.5">
+                      {format(new Date(activity.updatedAt), "yyyy-MM-dd HH:mm")}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
 
-                    return (
-                      <Link
-                        key={deadline._id}
-                        href={
-                          (deadline.projectId
-                            ? ROUTES.PROJECT_PROGRESS(deadline.projectId)
-                            : ROUTES.CALENDAR) as any
-                        }
+        {/* Right column: Deadlines + High Priority */}
+        <div className="space-y-4 text-left">
+          {/* Upcoming deadlines */}
+          <section className="rounded-lg border border-[#DAD8CE] bg-[#F8F9F5] p-5">
+            <h2 className="font-heading text-[17px] font-medium text-[#20221F] mb-3">
+              Upcoming
+            </h2>
+            {upcomingDeadlines.length === 0 ? (
+              <p className="font-inter text-[13px] text-[#6B6E64]">No upcoming deadlines.</p>
+            ) : (
+              <ul className="space-y-2.5">
+                {upcomingDeadlines.map((event) => {
+                  const project = recentProjects.find((p) => p._id === event.projectId);
+                  return (
+                    <li key={event._id} className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <Link
+                          href={
+                            (event.projectId
+                              ? ROUTES.PROJECT_CALENDAR(event.projectId)
+                              : ROUTES.CALENDAR) as any
+                          }
+                          className="font-inter text-[12px] text-[#20221F] leading-snug hover:underline truncate block"
+                        >
+                          {event.title}
+                        </Link>
+                        {project && (
+                          <p className="font-mono text-[11px] text-[#6B6E64] truncate">
+                            {project.name}
+                          </p>
+                        )}
+                      </div>
+                      <span className={`font-mono text-[11px] shrink-0 ${urgencyColor(event.date)}`}>
+                        {formatDistanceToNow(new Date(event.date), { addSuffix: true })}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+
+          {/* High priority pending */}
+          <section className="rounded-lg border border-[#DAD8CE] bg-[#F8F9F5] p-5">
+            <h2 className="font-heading text-[17px] font-medium text-[#20221F] mb-3">
+              High Priority
+            </h2>
+            {highPriorityTasks.length === 0 ? (
+              <p className="font-inter text-[13px] text-[#6B6E64]">No high-priority tasks.</p>
+            ) : (
+              <ul className="space-y-3">
+                {highPriorityTasks.map((task) => {
+                  const isChecked = task.status === "done";
+                  return (
+                    <li key={task._id} className="flex items-start gap-2">
+                      <button
+                        onClick={() => handleToggleTask(task._id, task.status)}
+                        className={`mt-0.5 w-4 h-4 rounded border shrink-0 flex items-center justify-center transition-colors ${
+                          isChecked
+                            ? "bg-[#4F46C7] border-[#4F46C7]"
+                            : "border-[#DAD8CE] hover:border-[#4F46C7] bg-[#EEF0EA]"
+                        }`}
+                        aria-label={`Toggle ${task.title}`}
                       >
-                        <div
-                          className={`bg-muted/15 border-border border-l-solid hover:border-primary/20 flex h-20 flex-col justify-between rounded border border-l-4 p-3 text-xs transition-all ${
-                            DEADLINE_COLORS[deadline.type] || "border-l-zinc-400"
+                        {isChecked && (
+                          <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10">
+                            <path
+                              d="M1.5 5l2.5 2.5 4.5-5"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                      <div className="min-w-0">
+                        <p
+                          className={`font-inter text-[12px] leading-snug ${
+                            isChecked ? "line-through text-[#6B6E64]" : "text-[#20221F]"
                           }`}
                         >
-                          <div className="space-y-0.5">
-                            <div className="flex items-center justify-between gap-1.5">
-                              <span className="text-foreground max-w-[130px] truncate font-semibold">
-                                {deadline.title}
-                              </span>
-                              <span
-                                className={`rounded-full px-1.5 py-0.5 text-[8px] font-semibold uppercase ${
-                                  DEADLINE_BG[deadline.type] ||
-                                  "text-muted-foreground bg-zinc-500/10"
-                                }`}
-                              >
-                                {deadline.type}
-                              </span>
-                            </div>
-                            {project && (
-                              <p className="text-muted-foreground truncate text-[10px]">
-                                {project.name}
-                              </p>
-                            )}
-                          </div>
-                          <span className="text-muted-foreground/80 self-start font-mono text-[10px]">
-                            {formatDate(deadline.date)}
-                          </span>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Recent Activity Timeline */}
-          <Card className="bg-card border-border border">
-            <CardContent className="space-y-4 p-4">
-              <div className="flex items-center gap-2">
-                <History className="text-primary h-4.5 w-4.5" />
-                <h3 className="text-foreground text-sm font-semibold">Recent Activity</h3>
-              </div>
-
-              {recentActivity.length === 0 ? (
-                <p className="text-muted-foreground py-6 text-center text-xs">
-                  No recent activities recorded in this account yet.
-                </p>
-              ) : (
-                <div className="border-border relative ml-2 space-y-4 border-l py-2 pl-4">
-                  {recentActivity.map((activity) => {
-                    const project = recentProjects.find((p) => p._id === activity.projectId);
-
-                    let Icon = FileText;
-                    let typeLabel = "document";
-                    let redirectUrl: string = ROUTES.DOCUMENTS;
-
-                    if (activity.type === "note") {
-                      Icon = BookOpen;
-                      typeLabel = "note";
-                      redirectUrl = activity.projectId
-                        ? ROUTES.PROJECT_NOTES(activity.projectId)
-                        : ROUTES.PROJECTS;
-                    } else if (activity.type === "task") {
-                      Icon = CheckSquare;
-                      typeLabel = "task";
-                      redirectUrl = activity.projectId
-                        ? ROUTES.PROJECT_PROGRESS(activity.projectId)
-                        : ROUTES.PROJECTS;
-                    } else if (activity.type === "document" && activity.projectId) {
-                      redirectUrl = ROUTES.PROJECT_DOCUMENTS(activity.projectId);
-                    }
-
-                    return (
-                      <div key={`${activity.type}-${activity.id}`} className="group relative">
-                        {/* Timeline Bullet Icon */}
-                        <div className="bg-card border-border text-muted-foreground group-hover:text-primary group-hover:border-primary/40 absolute top-0.5 -left-[25px] flex h-5 w-5 items-center justify-center rounded-full border transition-colors">
-                          <Icon className="h-3 w-3" />
-                        </div>
-
-                        <div className="space-y-0.5">
-                          <div className="text-foreground/80 flex flex-wrap items-center gap-1 text-xs leading-normal">
-                            <span className="text-foreground font-semibold capitalize">
-                              {typeLabel}
-                            </span>
-                            <Link
-                              href={redirectUrl as any}
-                              className="text-primary max-w-[200px] truncate font-medium hover:underline"
-                            >
-                              &ldquo;{activity.title}&rdquo;
-                            </Link>
-                            {project && (
-                              <span className="text-muted-foreground/60 text-[10px]">
-                                in <span className="font-medium">{project.name}</span>
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-muted-foreground font-mono text-[10px]">
-                            {formatRelativeTime(activity.updatedAt)}
-                          </p>
-                        </div>
+                          {task.title}
+                        </p>
+                        <StatusChip status={task.status as any} className="mt-0.5" />
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right high-priority widget */}
-        <div className="space-y-6">
-          <Card className="bg-card border-border flex h-full flex-col border">
-            <CardContent className="flex flex-1 flex-col justify-between p-4">
-              <div className="space-y-4">
-                <div className="border-border/30 flex items-center gap-2 border-b pb-3">
-                  <ListTodo className="text-primary h-4.5 w-4.5" />
-                  <h3 className="text-foreground text-sm font-semibold">High Priority Tasks</h3>
-                </div>
-
-                {highPriorityTasks.length === 0 ? (
-                  <p className="text-muted-foreground py-12 text-center text-xs">
-                    Clear skies! No pending high-priority tasks across active project workspaces.
-                  </p>
-                ) : (
-                  <div className="space-y-2.5">
-                    {highPriorityTasks.map((task) => {
-                      const project = recentProjects.find((p) => p._id === task.projectId);
-
-                      return (
-                        <Link key={task._id} href={ROUTES.PROJECT_PROGRESS(task.projectId) as any}>
-                          <div className="bg-muted/15 border-border hover:border-primary/20 flex flex-col justify-between gap-2 rounded border p-3 text-xs transition-all">
-                            <div className="space-y-0.5">
-                              <h4 className="text-foreground max-w-[220px] truncate font-semibold">
-                                {task.title}
-                              </h4>
-                              {project && (
-                                <p className="text-muted-foreground truncate text-[10px] font-medium">
-                                  {project.name}
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex items-center justify-between pt-1">
-                              <Badge
-                                variant="outline"
-                                className={`h-4 border border-solid px-1.5 py-0 font-mono text-[9px] font-medium uppercase ${
-                                  TASK_STATUS_COLORS[task.status] ||
-                                  "text-muted-foreground bg-zinc-500/10"
-                                }`}
-                              >
-                                {TASK_STATUS_LABELS[task.status] || task.status}
-                              </Badge>
-                              {task.dueDate && (
-                                <span className="text-muted-foreground/80 font-mono text-[9px]">
-                                  Due: {formatShortDate(task.dueDate)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {highPriorityTasks.length > 0 && (
-                <div className="border-border/30 mt-4 border-t pt-4 text-center">
-                  <Link
-                    href={ROUTES.PROJECTS}
-                    className="text-primary inline-flex items-center gap-1 text-xs font-semibold hover:underline"
-                  >
-                    <span>Manage Tasks in Projects</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
         </div>
       </div>
 
-      {/* Project Creator Dialog */}
       <ProjectDialog open={projectDialogOpen} onOpenChange={setProjectDialogOpen} />
     </div>
+    </>
   );
-}
-
-// Simple MM-DD format helper since we need it in tasks list
-function formatShortDate(date: string) {
-  try {
-    const d = new Date(date);
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${m}-${day}`;
-  } catch {
-    return "—";
-  }
 }

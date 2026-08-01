@@ -2,17 +2,12 @@
 
 import { Search } from "lucide-react";
 import { useEffect, useState } from "react";
-import { cn } from "@/lib/utils";
 import { SearchCommand } from "@/components/shared/SearchCommand";
+import { usePageHeader } from "./PageHeaderContext";
 
-interface HeaderProps {
-  title?: string;
-  subtitle?: string;
-  actions?: React.ReactNode;
-}
-
-export function Header({ title, subtitle, actions }: HeaderProps) {
+export function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
+  const { header } = usePageHeader();
 
   // ⌘K / Ctrl+K shortcut
   useEffect(() => {
@@ -28,33 +23,63 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
 
   return (
     <>
-      <header className="border-border bg-background/80 flex h-14 items-center justify-between border-b px-6 backdrop-blur-sm">
-        {/* Left: title area (rendered by pages via Server Components usually, but slot provided) */}
+      <header
+        className="flex h-14 shrink-0 items-center gap-4 border-b px-5"
+        style={{ borderColor: "var(--line)", backgroundColor: "var(--paper)" }}
+      >
+        {/* Left: title + subtitle from context */}
         <div className="min-w-0 flex-1">
-          {title && (
-            <div>
-              <h1 className={cn("text-foreground truncate text-base font-semibold")}>{title}</h1>
-              {subtitle && <p className="text-muted-foreground truncate text-xs">{subtitle}</p>}
-            </div>
+          {header.title && (
+            <h1
+              className="truncate font-heading leading-tight"
+              style={{ fontSize: "18px", fontWeight: 500, color: "var(--text)" }}
+            >
+              {header.title}
+            </h1>
+          )}
+          {header.subtitle && (
+            <p
+              className="truncate font-mono"
+              style={{ fontSize: "11px", color: "var(--text-dim)" }}
+            >
+              {header.subtitle}
+            </p>
           )}
         </div>
 
-        {/* Right: actions + search */}
-        <div className="flex items-center gap-2">
-          {actions}
+        {/* Right: page actions + search */}
+        <div className="flex shrink-0 items-center gap-3">
+          {header.actions}
 
           <button
             onClick={() => setSearchOpen(true)}
-            className={cn(
-              "border-border bg-background flex items-center gap-2 rounded-md border px-3 py-1.5",
-              "text-muted-foreground transition-subtle text-sm",
-              "hover:border-border/80 hover:bg-muted hover:text-foreground"
-            )}
+            className="flex items-center gap-2 rounded-md border px-3 py-1.5 transition-colors"
+            style={{
+              borderColor: "var(--line)",
+              backgroundColor: "var(--paper-raised)",
+              color: "var(--text-dim)",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--accent-color)";
+              (e.currentTarget as HTMLElement).style.color = "var(--text)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--line)";
+              (e.currentTarget as HTMLElement).style.color = "var(--text-dim)";
+            }}
             aria-label="Open search (⌘K)"
           >
             <Search className="h-3.5 w-3.5" />
-            <span className="hidden text-xs sm:inline">Search...</span>
-            <kbd className="bg-muted text-muted-foreground hidden rounded px-1.5 py-0.5 font-mono text-[10px] sm:inline-block">
+            <span className="hidden text-xs sm:inline font-inter">Search...</span>
+            <kbd
+              className="hidden rounded px-1 py-0.5 font-mono text-[10px] sm:inline-block"
+              style={{
+                backgroundColor: "var(--paper)",
+                borderColor: "var(--line)",
+                border: "1px solid var(--line)",
+                color: "var(--text-dim)",
+              }}
+            >
               ⌘K
             </kbd>
           </button>

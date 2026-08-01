@@ -206,14 +206,16 @@ export function PasswordDialog({
                 {errors.category?.message && <FieldError>{errors.category.message}</FieldError>}
               </Field>
 
-              {/* Project Link drop-down (visible on global dialog, pre-populated or un-linked if defaultProjectId is supplied) */}
+              {/* Project Link drop-down (visible on global dialog, pre-populated and disabled if defaultProjectId is supplied) */}
               <Field data-invalid={!!errors.projectId}>
                 <FieldLabel htmlFor="projectId">Link to Project</FieldLabel>
                 <select
                   id="projectId"
-                  disabled={isPending}
+                  disabled={isPending || (!!defaultProjectId && !isEdit)}
                   {...register("projectId")}
-                  className="border-input bg-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                  className={`border-input bg-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm transition-colors focus-visible:ring-1 focus-visible:outline-none ${
+                    defaultProjectId && !isEdit ? "bg-muted cursor-not-allowed opacity-80" : ""
+                  }`}
                 >
                   <option value="">None (Global Vault Only)</option>
                   {projects.map((p) => (
@@ -244,7 +246,7 @@ export function PasswordDialog({
                 id="notes"
                 placeholder="SSH connection commands, key descriptions, or usage instructions..."
                 disabled={isPending}
-                className="h-16 resize-none text-xs"
+                className="h-16 resize-none text-xs break-all break-words"
                 {...register("notes")}
               />
               {errors.notes?.message && <FieldError>{errors.notes.message}</FieldError>}

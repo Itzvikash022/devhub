@@ -1,25 +1,15 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useCalendarList, useDeleteCalendarEvent, CalendarEventData } from "@/hooks/useCalendar";
 import { useProjectsList } from "@/hooks/useProjects";
+import { SetPageHeader } from "@/components/layout/SetPageHeader";
 import { CalendarEventDialog } from "@/components/dialogs/CalendarEventDialog";
 import { CalendarEventDetailsDialog } from "@/components/dialogs/CalendarEventDetailsDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  Lock,
-  Filter,
-  Layers,
-  Calendar as CalendarIcon,
-  ListChecks,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Loader2, Lock } from "lucide-react";
 
 interface CalendarViewProps {
   projectId?: string;
@@ -27,35 +17,12 @@ interface CalendarViewProps {
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-const MONTH_LABELS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
-const TYPE_DOTS: Record<string, string> = {
-  personal: "bg-blue-500",
-  milestone: "bg-amber-500",
-  deadline: "bg-rose-500",
-  meeting: "bg-emerald-500",
-  release: "bg-purple-500",
-};
-
-const TYPE_LABELS: Record<string, string> = {
-  personal: "Personal",
-  milestone: "Milestone",
-  deadline: "Deadline",
-  meeting: "Meeting",
-  release: "Release",
+const colorMap: Record<string, string> = {
+  milestone: "bg-[#EBE9F9] text-[#4F46C7] border-[#4F46C7]/30",
+  release: "bg-[#EBE9F9] text-[#4F46C7] border-[#4F46C7]/30",
+  meeting: "bg-[#3F7A5C]/10 text-[#3F7A5C] border-[#3F7A5C]/30",
+  deadline: "bg-[#B14B4B]/10 text-[#B14B4B] border-[#B14B4B]/30",
+  personal: "bg-[#B8792E]/10 text-[#B8792E] border-[#B8792E]/30",
 };
 
 function getFormattedDateKey(date: Date) {
@@ -73,8 +40,6 @@ export function CalendarView({ projectId }: CalendarViewProps) {
   const month = currentDate.getMonth();
 
   // Filters state
-  const [filterType, setFilterType] = useState<string>("all");
-  const [filterSource, setFilterSource] = useState<string>("all");
   const [filterProjectId, setFilterProjectId] = useState<string>("all");
   const [showProgressEvents, setShowProgressEvents] = useState<boolean>(true);
 
@@ -98,7 +63,6 @@ export function CalendarView({ projectId }: CalendarViewProps) {
   const dateParam = searchParams.get("date");
   const eventIdParam = searchParams.get("eventId");
 
-  // Sync currentDate when date parameter changes in URL
   useEffect(() => {
     if (dateParam) {
       const d = new Date(dateParam);
@@ -108,7 +72,6 @@ export function CalendarView({ projectId }: CalendarViewProps) {
     }
   }, [dateParam]);
 
-  // Sync selected event and open details dialog when eventId parameter is in URL
   useEffect(() => {
     if (eventIdParam && events.length > 0) {
       const matched = events.find((e) => e._id === eventIdParam);
@@ -119,89 +82,45 @@ export function CalendarView({ projectId }: CalendarViewProps) {
     }
   }, [eventIdParam, events]);
 
-  // Navigation handlers
-  const handlePrevMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1));
-  };
-
-  const handleNextMonth = () => {
-    setCurrentDate(new Date(year, month + 1, 1));
-  };
-
-  const handleToday = () => {
-    setCurrentDate(new Date());
-  };
+  const handlePrevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
+  const handleNextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
+  const handleToday = () => setCurrentDate(new Date());
 
   // Month date grid calculations
-  const gridCells = useMemo(() => {
-    const cells: Date[] = [];
-    const firstDayIndex = new Date(year, month, 1).getDay();
-    const totalDays = new Date(year, month + 1, 0).getDate();
+  const monthStart = new Date(year, month, 1);
+  const startDow = monthStart.getDay();
+  const totalDays = new Date(year, month + 1, 0).getDate();
 
-    // Padding days from previous month
-    const prevMonthDays = new Date(year, month, 0).getDate();
-    for (let i = firstDayIndex - 1; i >= 0; i--) {
-      cells.push(new Date(year, month - 1, prevMonthDays - i));
+  const days: Date[] = [];
+  for (let i = 1; i <= totalDays; i++) {
+    days.push(new Date(year, month, i));
+  }
+
+  // Filter events based on filterProjectId, showProgressEvents, and projectId props
+  const filteredEvents = events.filter((ev) => {
+    // Progress events toggle filter
+    if (!showProgressEvents && ev.source === "task") return false;
+
+    // In project view: strictly filter to current project only
+    if (!isGlobalView) {
+      return ev.projectId === projectId;
     }
 
-    // Current month days
-    for (let i = 1; i <= totalDays; i++) {
-      cells.push(new Date(year, month, i));
-    }
-
-    // Padding days from next month
-    const remainingSlots = 42 - cells.length; // 6 rows grid
-    for (let i = 1; i <= remainingSlots; i++) {
-      cells.push(new Date(year, month + 1, i));
-    }
-
-    return cells;
-  }, [year, month]);
-
-  // Filter events based on selections
-  const filteredEvents = useMemo(() => {
-    return events.filter((ev) => {
-      const matchesType = filterType === "all" ? true : ev.type === filterType;
-      const matchesSource =
-        filterSource === "all"
-          ? true
-          : filterSource === "manual"
-            ? ev.source === "manual"
-            : ev.source !== "manual";
-
-      // Hide task-sourced (progress) events if toggle is off
-      const matchesProgress = showProgressEvents ? true : ev.source !== "task";
-
-      let matchesProject = true;
-      if (isGlobalView) {
-        if (filterProjectId !== "all") {
-          if (filterProjectId === "none") {
-            matchesProject = !ev.projectId;
-          } else {
-            matchesProject = ev.projectId === filterProjectId;
-          }
-        }
-      }
-
-      return matchesType && matchesSource && matchesProgress && matchesProject;
-    });
-  }, [events, filterType, filterSource, filterProjectId, showProgressEvents, isGlobalView]);
+    // In global view: apply project DDL filter
+    if (filterProjectId === "all") return true;
+    if (filterProjectId === "personal") return !ev.projectId;
+    return ev.projectId === filterProjectId;
+  });
 
   // Group events by cell key
-  const eventsByDateKey = useMemo(() => {
-    const map: Record<string, CalendarEventData[]> = {};
-    filteredEvents.forEach((ev) => {
-      const key = getFormattedDateKey(new Date(ev.date));
-      if (!map[key]) map[key] = [];
-      map[key].push(ev);
-    });
-    return map;
-  }, [filteredEvents]);
+  const eventsByDateKey: Record<string, CalendarEventData[]> = {};
+  filteredEvents.forEach((ev) => {
+    const key = getFormattedDateKey(new Date(ev.date));
+    if (!eventsByDateKey[key]) eventsByDateKey[key] = [];
+    eventsByDateKey[key].push(ev);
+  });
 
   const handleCellClick = (cellDate: Date) => {
-    // Check if cell is in active month
-    if (cellDate.getMonth() !== month) return;
-
     const cellKey = getFormattedDateKey(cellDate);
     const cellEvents = eventsByDateKey[cellKey] || [];
 
@@ -241,7 +160,7 @@ export function CalendarView({ projectId }: CalendarViewProps) {
     });
   };
 
-  const handleOpenUpload = () => {
+  const handleOpenAdd = () => {
     setSelectedDate(undefined);
     setSelectedItem(undefined);
     setDialogOpen(true);
@@ -249,316 +168,292 @@ export function CalendarView({ projectId }: CalendarViewProps) {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between pb-3">
-          <div className="bg-muted h-6 w-36 animate-pulse rounded" />
-          <div className="bg-muted h-9 w-24 animate-pulse rounded" />
-        </div>
-        <div className="bg-muted border-border h-96 animate-pulse rounded-lg border" />
+      <div className="max-w-[1100px] mx-auto py-12 text-center font-inter text-sm text-[#6B6E64]">
+        <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-[#4F46C7]" />
+        Loading calendar...
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-destructive py-6 text-center">
-        Failed to load calendar scheduling events.
+      <div className="max-w-[1100px] mx-auto py-12 text-center font-inter text-sm text-[#B14B4B]">
+        Failed to load calendar events.
       </div>
     );
   }
 
   const todayKey = getFormattedDateKey(new Date());
 
+  const addButtonNode = (
+    <button
+      onClick={handleOpenAdd}
+      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#4F46C7] text-white font-inter text-[13px] hover:bg-[#4338a8] transition-colors"
+    >
+      <Plus className="w-3.5 h-3.5" /> Add event
+    </button>
+  );
+
   return (
-    <div className="space-y-6">
-      {/* Calendar Header Controls */}
-      <div className="bg-card border-border flex flex-col justify-between gap-4 rounded-lg border p-4 lg:flex-row lg:items-center">
-        {/* Navigation & Display Month */}
-        <div className="flex items-center gap-3">
-          <h2 className="text-foreground font-heading min-w-[160px] text-lg font-semibold">
-            {MONTH_LABELS[month]} {year}
-          </h2>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
+    <>
+      {isGlobalView && <SetPageHeader title="Calendar" actions={addButtonNode} />}
+
+      <div className="max-w-[1100px] mx-auto">
+        {/* Toolbar */}
+        <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+          {/* Month Navigation */}
+          <div className="flex items-center gap-3">
+            <button
               onClick={handlePrevMonth}
-              title="Previous month"
+              className="p-1.5 rounded-md border border-[#DAD8CE] bg-[#F8F9F5] text-[#6B6E64] hover:text-[#20221F] hover:border-[#4F46C7] transition-colors"
+              aria-label="Previous month"
             >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <h2 className="font-heading text-[20px] font-medium text-[#20221F] min-w-[180px] text-center">
+              {monthStart.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+            </h2>
+            <button
+              onClick={handleNextMonth}
+              className="p-1.5 rounded-md border border-[#DAD8CE] bg-[#F8F9F5] text-[#6B6E64] hover:text-[#20221F] hover:border-[#4F46C7] transition-colors"
+              aria-label="Next month"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            <button
               onClick={handleToday}
-              className="h-8 text-xs font-medium"
+              className="px-2.5 py-1 rounded-md border border-[#DAD8CE] bg-[#F8F9F5] font-mono text-[11px] text-[#6B6E64] hover:text-[#20221F] transition-colors"
             >
               Today
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={handleNextMonth}
-              title="Next month"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Filter controls panel */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="bg-muted/40 border-border flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs">
-            <Filter className="text-muted-foreground h-3.5 w-3.5" />
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="text-foreground border-none bg-transparent pr-2 text-xs font-medium focus:outline-none"
-            >
-              <option value="all">All Types</option>
-              {Object.entries(TYPE_LABELS).map(([k, label]) => (
-                <option key={k} value={k}>
-                  {label}
-                </option>
-              ))}
-            </select>
+            </button>
           </div>
 
-          <div className="bg-muted/40 border-border flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs">
-            <Layers className="text-muted-foreground h-3.5 w-3.5" />
-            <select
-              value={filterSource}
-              onChange={(e) => setFilterSource(e.target.value)}
-              className="text-foreground border-none bg-transparent pr-2 text-xs font-medium focus:outline-none"
-            >
-              <option value="all">All Sources</option>
-              <option value="manual">Manual Scheduled</option>
-              <option value="auto">Auto Tasks</option>
-            </select>
-          </div>
+          {/* Filters & Actions */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Project Selection Dropdown (Global View Only) */}
+            {isGlobalView && (
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[10px] uppercase tracking-widest text-[#6B6E64]">
+                  Project:
+                </span>
+                <select
+                  value={filterProjectId}
+                  onChange={(e) => setFilterProjectId(e.target.value)}
+                  className="px-2.5 py-1 bg-[#F8F9F5] border border-[#DAD8CE] font-mono text-[11px] text-[#20221F] rounded-md h-8 focus:outline-none focus:border-[#4F46C7]"
+                >
+                  <option value="all">All Projects & Personal</option>
+                  <option value="personal">Personal / Unlinked</option>
+                  {projects.map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-          {isGlobalView && (
-            <div className="bg-muted/40 border-border flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs">
-              <CalendarIcon className="text-muted-foreground h-3.5 w-3.5" />
-              <select
-                value={filterProjectId}
-                onChange={(e) => setFilterProjectId(e.target.value)}
-                className="text-foreground max-w-[120px] truncate border-none bg-transparent pr-2 text-xs font-medium focus:outline-none"
+            {/* Progress Events Toggle Button (Global and Project-Specific) */}
+            <button
+              onClick={() => setShowProgressEvents((v) => !v)}
+              className={`px-2.5 py-1 rounded-md border font-mono text-[11px] uppercase tracking-wide transition-colors ${
+                showProgressEvents
+                  ? "bg-[#4F46C7] text-white border-[#4F46C7]"
+                  : "text-[#6B6E64] border-[#DAD8CE] bg-[#F8F9F5] hover:border-[#4F46C7]"
+              }`}
+            >
+              Progress Events: {showProgressEvents ? "ON" : "OFF"}
+            </button>
+
+            {!isGlobalView && (
+              <button
+                onClick={handleOpenAdd}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-[#4F46C7] text-white font-inter text-[12px] hover:bg-[#4338a8] transition-colors ml-1"
               >
-                <option value="all">All Projects</option>
-                <option value="none">Global Only</option>
-                {projects.map((p) => (
-                  <option key={p._id} value={p._id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Progress Events Toggle */}
-          <button
-            onClick={() => setShowProgressEvents((v) => !v)}
-            title={showProgressEvents ? "Hide task deadline events" : "Show task deadline events"}
-            className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-all ${
-              showProgressEvents
-                ? "bg-primary/10 border-primary/30 text-primary"
-                : "bg-muted/40 border-border text-muted-foreground"
-            }`}
-          >
-            <ListChecks className="h-3.5 w-3.5" />
-            Progress Events
-          </button>
-
-          <Button size="sm" onClick={handleOpenUpload} className="h-8 shrink-0 gap-1.5 text-xs">
-            <Plus className="h-3.5 w-3.5" />
-            Add Event
-          </Button>
-        </div>
-      </div>
-
-      {/* Month Grid */}
-      <div className="border-border bg-card overflow-hidden rounded-lg border">
-        {/* Days of Week Row */}
-        <div className="border-border bg-muted/10 grid grid-cols-7 border-b">
-          {WEEKDAYS.map((day) => (
-            <div
-              key={day}
-              className="text-muted-foreground py-2.5 text-center font-mono text-[10px] font-bold tracking-wider uppercase"
-            >
-              {day}
-            </div>
-          ))}
+                <Plus className="w-3.5 h-3.5" /> Add event
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Calendar Cells Grid */}
-        <div className="divide-border bg-card grid grid-cols-7 grid-rows-6 divide-x divide-y">
-          {gridCells.map((cellDate, idx) => {
-            const cellKey = getFormattedDateKey(cellDate);
-            const cellEvents = eventsByDateKey[cellKey] || [];
-            const isCurrentMonth = cellDate.getMonth() === month;
-            const isToday = cellKey === todayKey;
+        {/* Legend */}
+        <div className="flex items-center gap-4 mb-4 font-mono text-[11px] text-[#6B6E64]">
+          <span className="flex items-center gap-1.5">
+            <span className="text-[#4F46C7] font-bold">◆</span> Task / milestone (auto-generated)
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="text-[#6B6E64] font-bold">●</span> Manual event
+          </span>
+        </div>
 
-            return (
+        {/* Calendar Grid */}
+        <div className="rounded-lg border border-[#DAD8CE] bg-[#F8F9F5] overflow-hidden">
+          {/* Weekday headers */}
+          <div className="grid grid-cols-7 border-b border-[#DAD8CE]">
+            {WEEKDAYS.map((d) => (
               <div
-                key={`${cellKey}-${idx}`}
-                onClick={() => handleCellClick(cellDate)}
-                className={`group relative flex min-h-[100px] flex-col justify-between p-2 transition-all select-none ${
-                  isCurrentMonth
-                    ? "bg-card hover:bg-muted/10 cursor-pointer"
-                    : "bg-muted/10 text-muted-foreground/30 pointer-events-none"
-                }`}
+                key={d}
+                className="px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-[#6B6E64] text-center border-r border-[#DAD8CE] last:border-r-0 bg-[#EEF0EA]"
               >
-                {/* Day Number Row */}
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`flex h-5 w-5 items-center justify-center rounded-full font-mono text-[11px] font-semibold ${
-                      isToday
-                        ? "bg-primary text-white"
-                        : isCurrentMonth
-                          ? "text-foreground"
-                          : "text-muted-foreground/30"
+                {d}
+              </div>
+            ))}
+          </div>
+
+          {/* Day cells */}
+          <div className="grid grid-cols-7">
+            {/* Empty cells before month start */}
+            {Array.from({ length: startDow }).map((_, i) => (
+              <div
+                key={`empty-${i}`}
+                className="min-h-[100px] border-b border-r border-[#DAD8CE] bg-[#EEF0EA]/50 last:border-r-0"
+              />
+            ))}
+
+            {days.map((day, i) => {
+              const dayKey = getFormattedDateKey(day);
+              const dayEvents = eventsByDateKey[dayKey] || [];
+              const isToday = dayKey === todayKey;
+              const col = (startDow + i) % 7;
+              const isLastCol = col === 6;
+
+              return (
+                <div
+                  key={day.toISOString()}
+                  onClick={() => handleCellClick(day)}
+                  className={`min-h-[100px] border-b border-[#DAD8CE] p-1.5 cursor-pointer hover:bg-[#EEF0EA]/30 transition-colors ${
+                    !isLastCol ? "border-r" : ""
+                  } ${isToday ? "bg-[#EBE9F9]/40" : ""}`}
+                >
+                  <div
+                    className={`font-mono text-[12px] w-6 h-6 flex items-center justify-center rounded-full mb-1 ${
+                      isToday ? "bg-[#4F46C7] text-white" : "text-[#6B6E64]"
                     }`}
                   >
-                    {cellDate.getDate()}
-                  </span>
-
-                  {/* Event Count Badge (Visible on small screens) */}
-                  {cellEvents.length > 0 && (
-                    <Badge
-                      variant="secondary"
-                      className="bg-muted/65 h-4 px-1 font-mono text-[8px] md:hidden"
-                    >
-                      {cellEvents.length}
-                    </Badge>
-                  )}
-                </div>
-
-                {/* Event items container (visible on mid-large displays) */}
-                <div className="mt-1.5 hidden flex-1 flex-col justify-start gap-1 md:flex">
-                  {cellEvents.slice(0, 3).map((ev) => (
-                    <div
-                      key={ev._id}
-                      onClick={(e) => handleEventClick(e, ev)}
-                      className="group/item hover:bg-muted bg-card border-border hover:border-primary/20 flex max-w-full items-center justify-between truncate rounded border px-1.5 py-0.5 font-sans text-[9px] font-medium"
-                      title={ev.title}
-                    >
-                      <div className="flex min-w-0 items-center gap-1.5">
-                        <span
-                          className={`h-1.5 w-1.5 shrink-0 rounded-full ${TYPE_DOTS[ev.type] || "bg-zinc-400"}`}
-                        />
-                        <span className="text-foreground/90 truncate">{ev.title}</span>
-                      </div>
-                      {ev.source !== "manual" && (
-                        <Lock className="text-muted-foreground/50 ml-0.5 h-2 w-2 shrink-0" />
-                      )}
-                    </div>
-                  ))}
-
-                  {/* Over-flow counter */}
-                  {cellEvents.length > 3 && (
-                    <span className="text-muted-foreground/75 pl-1 font-mono text-[8px] font-semibold">
-                      + {cellEvents.length - 3} more
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Dialog forms */}
-      <CalendarEventDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        defaultProjectId={projectId}
-        defaultDate={selectedDate}
-        item={selectedItem}
-      />
-
-      {detailsItem && (
-        <CalendarEventDetailsDialog
-          open={detailsOpen}
-          onOpenChange={setDetailsOpen}
-          item={detailsItem}
-          onEditClick={handleEditClick}
-          onDeleteConfirm={handleDeleteConfirm}
-        />
-      )}
-
-      {/* Delete Confirmation */}
-      <ConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title="Delete Calendar Event"
-        description="Are you sure you want to delete this event? This action cannot be undone."
-        confirmLabel="Delete"
-        onConfirm={handleConfirmDelete}
-        loading={isDeletePending}
-      />
-
-      {/* More Events List Dialog Popup */}
-      {listModalOpen && listModalDate && (
-        <Dialog open={listModalOpen} onOpenChange={setListModalOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader className="border-border/40 flex flex-row items-center justify-between border-b pr-6 pb-3">
-              <DialogTitle className="text-sm font-semibold">
-                Events on{" "}
-                {listModalDate.toLocaleDateString(undefined, {
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </DialogTitle>
-              <Button
-                size="sm"
-                onClick={() => {
-                  setListModalOpen(false);
-                  setSelectedDate(getFormattedDateKey(listModalDate));
-                  setSelectedItem(undefined);
-                  setDialogOpen(true);
-                }}
-                className="h-8 shrink-0 gap-1 text-xs"
-              >
-                <Plus className="h-3 w-3" />
-                Add Event
-              </Button>
-            </DialogHeader>
-
-            <div className="no-scrollbar max-h-[300px] space-y-2 overflow-y-auto py-2 pr-1 text-left">
-              {(eventsByDateKey[getFormattedDateKey(listModalDate)] || []).map((ev) => (
-                <div
-                  key={ev._id}
-                  onClick={() => {
-                    setListModalOpen(false);
-                    setDetailsItem(ev);
-                    setDetailsOpen(true);
-                  }}
-                  className="border-border hover:border-primary/20 bg-card hover:bg-muted flex cursor-pointer items-center justify-between gap-3 rounded border p-2.5 text-xs font-medium transition-all"
-                >
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span
-                      className={`h-2 w-2 shrink-0 rounded-full ${TYPE_DOTS[ev.type] || "bg-zinc-400"}`}
-                    />
-                    <span className="text-foreground/90 truncate">{ev.title}</span>
+                    {day.getDate()}
                   </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <span className="text-muted-foreground bg-muted/65 rounded px-1.5 py-0.5 text-[10px] capitalize">
-                      {ev.type}
-                    </span>
-                    {ev.source !== "manual" && (
-                      <Lock className="text-muted-foreground/50 h-3.5 w-3.5" />
+                  <div className="space-y-0.5">
+                    {dayEvents.slice(0, 3).map((event) => {
+                      const colorClass =
+                        colorMap[event.type] ??
+                        "bg-[#EBE9F9] text-[#4F46C7] border-[#4F46C7]/30";
+                      return (
+                        <button
+                          key={event._id}
+                          onClick={(e) => handleEventClick(e, event)}
+                          className={`w-full text-left px-1.5 py-0.5 rounded text-[11px] font-inter border truncate hover:opacity-80 transition-opacity flex items-center justify-between ${colorClass}`}
+                        >
+                          <span className="truncate">
+                            <span className="font-mono mr-1">
+                              {event.source !== "manual" ? "◆" : "●"}
+                            </span>
+                            {event.title}
+                          </span>
+                          {event.source !== "manual" && (
+                            <Lock className="w-2.5 h-2.5 shrink-0 ml-1 opacity-60" />
+                          )}
+                        </button>
+                      );
+                    })}
+                    {dayEvents.length > 3 && (
+                      <p className="font-mono text-[10px] text-[#6B6E64] px-1">
+                        +{dayEvents.length - 3} more
+                      </p>
                     )}
                   </div>
                 </div>
-              ))}
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-    </div>
+              );
+            })}
+
+            {/* Trailing empty cells */}
+            {(() => {
+              const totalCells = startDow + days.length;
+              const remainder = totalCells % 7;
+              if (remainder === 0) return null;
+              return Array.from({ length: 7 - remainder }).map((_, i) => (
+                <div
+                  key={`trail-${i}`}
+                  className="min-h-[100px] border-b border-r border-[#DAD8CE] bg-[#EEF0EA]/50 last:border-r-0"
+                />
+              ));
+            })()}
+          </div>
+        </div>
+
+        {/* Dialog forms */}
+        <CalendarEventDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          defaultProjectId={projectId}
+          defaultDate={selectedDate}
+          item={selectedItem}
+        />
+
+        {detailsItem && (
+          <CalendarEventDetailsDialog
+            open={detailsOpen}
+            onOpenChange={setDetailsOpen}
+            item={detailsItem}
+            onEditClick={handleEditClick}
+            onDeleteConfirm={handleDeleteConfirm}
+          />
+        )}
+
+        {/* Delete Confirmation */}
+        <ConfirmDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          title="Delete Calendar Event"
+          description="Are you sure you want to delete this event? This action cannot be undone."
+          confirmLabel="Delete"
+          onConfirm={handleConfirmDelete}
+          loading={isDeletePending}
+        />
+
+        {/* More Events List Modal */}
+        {listModalOpen && listModalDate && (
+          <Dialog open={listModalOpen} onOpenChange={setListModalOpen}>
+            <DialogContent className="sm:max-w-md bg-[#F8F9F5] border-[#DAD8CE] rounded-xl">
+              <DialogHeader className="border-b border-[#DAD8CE] pb-3">
+                <DialogTitle className="font-heading text-base font-medium text-[#20221F]">
+                  Events on {formatFormattedDate(listModalDate)}
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="max-h-[300px] space-y-2 overflow-y-auto py-2">
+                {(eventsByDateKey[getFormattedDateKey(listModalDate)] || []).map((ev) => (
+                  <div
+                    key={ev._id}
+                    onClick={() => {
+                      setListModalOpen(false);
+                      setDetailsItem(ev);
+                      setDetailsOpen(true);
+                    }}
+                    className="border border-[#DAD8CE] hover:border-[#4F46C7] bg-[#EEF0EA] flex cursor-pointer items-center justify-between gap-3 rounded p-2.5 text-xs font-inter transition-all"
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="font-mono text-[#4F46C7]">
+                        {ev.source !== "manual" ? "◆" : "●"}
+                      </span>
+                      <span className="text-[#20221F] truncate">{ev.title}</span>
+                    </div>
+                    <span className="font-mono text-[10px] uppercase text-[#6B6E64]">
+                      {ev.type}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+    </>
   );
+}
+
+function formatFormattedDate(date: Date) {
+  return date.toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 }

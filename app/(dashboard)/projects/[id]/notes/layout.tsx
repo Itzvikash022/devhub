@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useParams, usePathname, useRouter } from "next/navigation";
-import { FileText, Plus, Search, GripVertical, Trash2, Loader2, FolderClosed } from "lucide-react";
-import { useNotesList, useCreateNote, useDeleteNote, useReorderNotes } from "@/hooks/useNotes";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useParams, useRouter } from "next/navigation";
+import { FileText, Plus, Search, Loader2 } from "lucide-react";
+import { useNotesList, useCreateNote } from "@/hooks/useNotes";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 interface NotesLayoutProps {
@@ -15,19 +14,20 @@ interface NotesLayoutProps {
 
 export default function NotesLayout({ children }: NotesLayoutProps) {
   const { id, noteId } = useParams() as { id: string; noteId?: string };
-  const pathname = usePathname();
   const router = useRouter();
 
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Drag and drop local state indices
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-
   // Queries & Mutations
   const { data: notes = [], isLoading } = useNotesList(id);
   const { mutate: createNote, isPending: isCreatePending } = useCreateNote(id);
-  const { mutate: reorderNotes } = useReorderNotes(id);
-  const { mutate: deleteNote } = useDeleteNote(noteId || "", id);
+
+  // Auto-redirect to first note if on index route `/projects/[id]/notes`
+  useEffect(() => {
+    if (!noteId && notes.length > 0) {
+      router.replace(`/projects/${id}/notes/${notes[0]._id}`);
+    }
+  }, [noteId, notes, id, router]);
 
   // Filter notes based on search query
   const filteredNotes = notes.filter((note) =>
@@ -35,141 +35,98 @@ export default function NotesLayout({ children }: NotesLayoutProps) {
   );
 
   const handleCreatePage = () => {
-    createNote({
-      title: "Untitled Page",
-      content: "[]",
-      order: notes.length > 0 ? notes[notes.length - 1].order + 1 : 0,
-    });
-  };
-
-  // ─── Drag & Drop Reordering handlers ───────────────────────────────────────
-
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = "move";
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
-    e.preventDefault();
-    if (draggedIndex === null || draggedIndex === targetIndex) return;
-
-    // Rearrange items locally
-    const reorderedList = [...notes];
-    const [draggedItem] = reorderedList.splice(draggedIndex, 1);
-    reorderedList.splice(targetIndex, 0, draggedItem);
-
-    // Map new sequence indices (0, 1, 2...)
-    const newOrderPayload = reorderedList.map((item, idx) => ({
-      id: item._id,
-      order: idx,
-    }));
-
-    // Trigger api mutation (updates TanStack cache optimistically)
-    reorderNotes(newOrderPayload);
-    setDraggedIndex(null);
+    createNote(
+      {
+        title: "Untitled Page",
+        content: "## Overview\n\nStart writing notes or specifications here...",
+        order: notes.length > 0 ? notes[notes.length - 1].order + 1 : 0,
+      },
+      {
+        onSuccess: (newNote) => {
+          router.push(`/projects/${id}/notes/${newNote._id}`);
+        },
+      }
+    );
   };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden md:flex-row">
-      {/* Left Notes Sub-Sidebar */}
-      <aside className="border-border bg-card/45 flex h-64 w-full shrink-0 flex-col border-b md:h-full md:w-60 md:border-r md:border-b-0">
-        {/* Search & Actions bar */}
-        <div className="border-border shrink-0 space-y-2 border-b p-3">
-          <div className="relative">
-            <Search className="text-muted-foreground absolute top-2.5 left-2.5 h-3.5 w-3.5" />
-            <Input
-              placeholder="Search pages..."
-              className="bg-background h-8 pl-8 text-xs"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <Button
+    <div className="flex h-full overflow-hidden bg-[#EEF0EA]">
+      {/* Left Pages Sub-Sidebar matching UI Ref */}
+      <aside className="w-56 shrink-0 border-r border-[#DAD8CE] bg-[#EEF0EA] flex flex-col h-full">
+        {/* Pages Header & Add Button */}
+        <div className="p-3 border-b border-[#DAD8CE] flex items-center justify-between">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-[#6B6E64]">
+            Pages ({notes.length})
+          </span>
+          <button
             onClick={handleCreatePage}
             disabled={isCreatePending}
-            className="h-8 w-full justify-center gap-1 text-xs"
-            size="sm"
+            className="text-[#6B6E64] hover:text-[#4F46C7] transition-colors p-1"
+            title="New Page"
           >
-            <Plus className="h-3.5 w-3.5" />
-            New Page
-          </Button>
+            {isCreatePending ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Plus className="w-3.5 h-3.5" />
+            )}
+          </button>
         </div>
 
-        {/* Notes Pages List */}
-        <div className="no-scrollbar flex-1 space-y-0.5 overflow-y-auto p-2">
+        {/* Search Input */}
+        <div className="px-3 py-2 border-b border-[#DAD8CE]/60">
+          <div className="relative">
+            <Search className="w-3 h-3 text-[#6B6E64] absolute left-2.5 top-2.5" />
+            <input
+              type="text"
+              placeholder="Search pages..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-2 py-1 bg-[#F8F9F5] border border-[#DAD8CE] font-inter text-[12px] text-[#20221F] rounded-md h-7 focus:outline-none focus:border-[#4F46C7]"
+            />
+          </div>
+        </div>
+
+        {/* Pages List */}
+        <ul className="flex-1 overflow-y-auto py-1">
           {isLoading ? (
-            <div className="flex items-center justify-center py-10">
-              <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-4 h-4 animate-spin text-[#4F46C7]" />
             </div>
           ) : filteredNotes.length === 0 ? (
-            <div className="text-muted-foreground py-10 text-center text-xs">
+            <div className="text-center py-10 font-inter text-[12px] text-[#6B6E64]">
               {searchQuery ? "No matching pages" : "No pages yet"}
             </div>
           ) : (
-            filteredNotes.map((note, index) => {
+            filteredNotes.map((note) => {
               const active = noteId === note._id;
               return (
-                <div
-                  key={note._id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, index)}
-                  onDragOver={(e) => handleDragOver(e, index)}
-                  onDrop={(e) => handleDrop(e, index)}
-                  className={cn(
-                    "group flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs transition-colors",
-                    active
-                      ? "bg-primary/10 text-primary font-medium"
-                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                    "cursor-pointer"
-                  )}
-                >
-                  {/* Grip handler for reordering */}
-                  <div className="cursor-grab opacity-0 transition-opacity group-hover:opacity-60 active:cursor-grabbing">
-                    <GripVertical className="h-3.5 w-3.5 shrink-0" />
-                  </div>
-
-                  {/* Page Anchor Link */}
+                <li key={note._id}>
                   <Link
                     href={`/projects/${id}/notes/${note._id}`}
-                    className="flex-1 truncate py-0.5 select-none"
+                    className={cn(
+                      "w-full text-left px-3 py-2 flex items-start gap-2 transition-colors border-l-2",
+                      active
+                        ? "bg-[#F8F9F5] text-[#20221F] border-[#4F46C7] font-medium"
+                        : "text-[#6B6E64] hover:bg-[#F8F9F5] hover:text-[#20221F] border-transparent"
+                    )}
                   >
-                    {note.title || "Untitled Page"}
+                    <FileText className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-inter text-[13px] truncate">{note.title || "Untitled"}</p>
+                      <p className="font-mono text-[10px] text-[#6B6E64]">
+                        {format(new Date(note.updatedAt || note.createdAt), "MM-dd")}
+                      </p>
+                    </div>
                   </Link>
-
-                  {/* Page Delete trigger */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      if (confirm("Delete this page?")) {
-                        if (noteId === note._id) {
-                          deleteNote();
-                        } else {
-                          // If deleting a non-active page, trigger deletion directly
-                          fetch(`/api/notes/${note._id}`, { method: "DELETE" }).then(() => {
-                            router.refresh();
-                          });
-                        }
-                      }
-                    }}
-                    className="hover:text-destructive rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100"
-                    title="Delete page"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 shrink-0" />
-                  </button>
-                </div>
+                </li>
               );
             })
           )}
-        </div>
+        </ul>
       </aside>
 
-      {/* Right Page Content */}
-      <div className="h-full flex-1 overflow-hidden">{children}</div>
+      {/* Right Content View / Editor */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#F8F9F5]">{children}</div>
     </div>
   );
 }

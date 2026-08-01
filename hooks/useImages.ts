@@ -41,14 +41,14 @@ async function handleResponse<T>(res: Response): Promise<T> {
 
 // ─── Query Hooks ──────────────────────────────────────────────────────────────
 
-export function useImagesList(projectId: string) {
+export function useImagesList(projectId?: string) {
   return useQuery<ImageAssetData[], ApiError>({
-    queryKey: ["images", projectId],
+    queryKey: ["images", projectId || "global"],
     queryFn: async () => {
-      const res = await fetch(API_ROUTES.PROJECT_IMAGES(projectId));
+      const url = projectId ? API_ROUTES.PROJECT_IMAGES(projectId) : "/api/images";
+      const res = await fetch(url);
       return handleResponse<ImageAssetData[]>(res);
     },
-    enabled: !!projectId,
   });
 }
 

@@ -1,26 +1,165 @@
+@import url("https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@source "../node_modules/@blocknote/shadcn";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
+/* ─── DevHub Design Tokens ─────────────────────────────────────────────────── */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains-mono);
+  --font-heading: var(--font-newsreader);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ─── Light Theme — DevHub Color System ────────────────────────────────────── */
+:root {
+  /* Content area: warm off-white from UI refs */
+  --background: oklch(0.968 0.005 85);
+  --foreground: oklch(0.16 0.005 240);
+
+  /* Cards sit slightly above the background */
+  --card: oklch(0.99 0 0);
+  --card-foreground: oklch(0.16 0.005 240);
+
+  --popover: oklch(0.99 0 0);
+  --popover-foreground: oklch(0.16 0.005 240);
+
+  /* Purple primary accent — from UI refs */
+  --primary: oklch(0.52 0.22 273);
+  --primary-foreground: oklch(0.99 0 0);
+
+  --secondary: oklch(0.94 0.003 85);
+  --secondary-foreground: oklch(0.3 0.005 240);
+
+  --muted: oklch(0.94 0.003 85);
+  --muted-foreground: oklch(0.52 0.008 240);
+
+  --accent: oklch(0.94 0.003 85);
+  --accent-foreground: oklch(0.16 0.005 240);
+
+  --destructive: oklch(0.577 0.245 27.325);
+
+  --border: oklch(0.89 0.003 85);
+  --input: oklch(0.89 0.003 85);
+  --ring: oklch(0.52 0.22 273);
+
+  --radius: 0.5rem;
+
+  /* Sidebar: dark per UI refs */
+  --sidebar: oklch(0.145 0.008 240);
+  --sidebar-foreground: oklch(0.88 0.005 240);
+  --sidebar-primary: oklch(0.52 0.22 273);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.22 0.01 240);
+  --sidebar-accent-foreground: oklch(0.88 0.005 240);
+  --sidebar-border: oklch(0.22 0.008 240);
+  --sidebar-ring: oklch(0.52 0.22 273);
+
+  /* DevHub custom font variables */
+  --font-inter: "Inter", system-ui, sans-serif;
+  --font-newsreader: "Newsreader", Georgia, serif;
+  --font-jetbrains-mono: "JetBrains Mono", "Fira Code", monospace;
+}
+
+/* ─── Base Styles ──────────────────────────────────────────────────────────── */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-inter);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    @apply font-sans;
+  }
+
+  /* Typography hierarchy */
+  .font-heading {
+    font-family: var(--font-newsreader);
+  }
+
+  .font-mono {
+    font-family: var(--font-jetbrains-mono);
+  }
+
+  /* Scrollbar styling — thin and minimal */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.8 0.003 85);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.7 0.003 85);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ─── Utility Classes ──────────────────────────────────────────────────────── */
+@layer utilities {
+  /* Mono text utility */
+  .text-mono {
+    font-family: var(--font-jetbrains-mono);
+    font-size: 0.8125rem;
+    letter-spacing: 0;
+  }
+
+  /* Heading font utility */
+  .text-editorial {
+    font-family: var(--font-newsreader);
+  }
+
+  /* Subtle transitions for interactive elements */
+  .transition-subtle {
+    transition:
+      color 150ms ease,
+      background-color 150ms ease,
+      border-color 150ms ease,
+      opacity 150ms ease;
+  }
 }

@@ -1,0 +1,88 @@
+import { connectToDatabase } from "@/lib/db";
+import { Project, IProjectDocument } from "@/models/Project";
+import { objectIdSchema } from "@/schemas/common.schema";
+import mongoose from "mongoose";
+
+export class ProjectRepository {
+  /**
+   * Finds a project by its MongoDB ObjectId.
+   */
+  static async findById(id: string): Promise<IProjectDocument | null> {
+    const parseResult = objectIdSchema.safeParse(id);
+    if (!parseResult.success) return null;
+
+    await connectToDatabase();
+    return Project.findById(id).exec();
+  }
+
+  /**
+   * Finds all projects belonging to a user, with optional status filter.
+   */
+  static async findAllByUserId(
+    userId: string,
+    filter?: { status?: string }
+  ): Promise<IProjectDocument[]> {
+    const parseResult = objectIdSchema.safeParse(userId);
+    if (!parseResult.success) return [];
+
+    await connectToDatabase();
+
+    const query: any = { userId: new mongoose.Types.ObjectId(userId) };
+    if (filter?.status) {
+      query.status = filter.status;
+    }
+
+    // Sort active first, then on-hold, then archived. Within statuses, sort by name.
+    return Project.find(query).sort({ updatedAt: -1 }).exec();
+  }
+
+  /**
+   * Creates a new project record.
+   */
+  static async create(projectData: {
+    userId: string;
+    name: string;
+    description: string;
+    status: string;
+  }): Promise<IProjectDocument> {
+    await connectToDatabase();
+    const project = new Project({
+      ...projectData,
+      userId: new mongoose.Types.ObjectId(projectData.userId),
+    });
+    return project.save();
+  }
+
+  /**
+   * Updates an existing project.
+   */
+  static async update(
+    id: string,
+    projectData: Partial<{
+      name: string;
+      description: string;
+      status: string;
+    }>
+  ): Promise<IProjectDocument | null> {
+    const parseResult = objectIdSchema.safeParse(id);
+    if (!parseResult.success) return null;
+
+    await connectToDatabase();
+    return Project.findByIdAndUpdate(id, projectData, {
+      new: true,
+      runValidators: true,
+    }).exec();
+  }
+
+  /**
+   * Deletes a project by id.
+   */
+  static async delete(id: string): Promise<boolean> {
+    const parseResult = objectIdSchema.safeParse(id);
+    if (!parseResult.success) return false;
+
+    await connectToDatabase();
+    const result = await Project.findByIdAndDelete(id).exec();
+    return !!result;
+  }
+}

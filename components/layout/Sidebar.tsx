@@ -82,8 +82,9 @@ export function Sidebar({ userName = "User", userEmail = "" }: SidebarProps) {
   const pathname = usePathname();
   const { data: dbProjects = [] } = useProjectsList();
 
-  const activeProjects = dbProjects
+  const activeProjects = [...dbProjects]
     .filter((p) => p.status !== "archived")
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     .map((p) => ({
       id: p._id,
       name: p.name,
@@ -147,17 +148,16 @@ export function Sidebar({ userName = "User", userEmail = "" }: SidebarProps) {
             </nav>
           </section>
 
-          {/* Projects */}
+          {/* Recently Updated Projects */}
           <section>
             {!collapsed && (
               <div className="mb-1 flex items-center justify-between px-2">
-                <p className="text-[10px] font-medium tracking-widest text-[oklch(0.4_0.005_240)] uppercase">
-                  Projects
-                </p>
                 <Link
                   href={ROUTES.PROJECTS}
-                  className="text-[oklch(0.4_0.005_240)] transition-colors hover:text-[oklch(0.6_0.005_240)]"
+                  className="flex items-center gap-1 text-[10px] font-medium tracking-widest text-[oklch(0.4_0.005_240)] uppercase hover:text-[oklch(0.7_0.005_240)] transition-colors"
+                  title="View all projects"
                 >
+                  Recently Updated
                   <ChevronRight className="h-3 w-3" />
                 </Link>
               </div>

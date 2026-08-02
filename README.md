@@ -8,13 +8,13 @@ A full-stack project management platform built with **Next.js 16**, **MongoDB**,
 
 | Module             | Description                                                             |
 | ------------------ | ----------------------------------------------------------------------- |
-| **Projects**       | Create workspaces with status tracking and detailed metadata            |
+| **Projects**       | Create workspaces with status tracking, dynamic tab titles & metadata   |
 | **Pipeline**       | Kanban-style task board with status, priority, assignee, and due dates  |
-| **Progress**       | Table view of all tasks with inline editing and comments                |
+| **Progress**       | Table view of all tasks with full-width expanded rows and live comments |
 | **Notes**          | Notion-style block editor with full-page, per-project note pages        |
 | **Calendar**       | Monthly event calendar with manual events and automatic task deadlines  |
 | **Password Vault** | AES-256-GCM encrypted credential storage, per-project or global         |
-| **Document Vault** | Secure file uploads via Cloudflare R2 presigned URLs                    |
+| **Document Vault** | Secure file uploads via server-side Cloudflare R2 streaming API         |
 | **Image Vault**    | Global and per-project image gallery with encrypted signed URL access   |
 | **Developer Tools**| Markdown previewer, HTML sandbox, JSON formatter, and whiteboard canvas |
 | **Whiteboard**     | Excalidraw-like vector drawing canvas with PNG & PDF export             |
@@ -25,12 +25,12 @@ A full-stack project management platform built with **Next.js 16**, **MongoDB**,
 
 ## Tech Stack
 
-- **Framework**: [Next.js 16](https://nextjs.org/) (App Router, Turbopack)
+- **Framework**: [Next.js 16](https://nextjs.org/) (App Router, Turbopack, `proxy.ts`)
 - **Language**: TypeScript 5
 - **Database**: MongoDB via [Mongoose 9](https://mongoosejs.com/)
-- **Auth**: JWT (access + refresh token pair, HTTP-only cookies)
+- **Auth**: JWT (access + refresh token pair, HTTP-only cookies, silent refresh)
 - **Encryption**: AES-256-GCM for password vault secrets
-- **File Storage**: [Cloudflare R2](https://developers.cloudflare.com/r2/) via AWS S3 SDK (presigned upload/download)
+- **File Storage**: [Cloudflare R2](https://developers.cloudflare.com/r2/) via AWS S3 SDK (presigned upload/download + server streaming API)
 - **UI**: [shadcn/ui](https://ui.shadcn.com/) + [Radix UI](https://www.radix-ui.com/) + [Tailwind CSS v4](https://tailwindcss.com/)
 - **Editor**: [BlockNote](https://www.blocknotejs.org/) (Notion-style rich text)
 - **Diagrams & Preview**: [Mermaid.js](https://mermaid.js.org/) + [Marked](https://marked.js.org/)
@@ -55,15 +55,15 @@ devhub/
 │   │   ├── images/          # Global image vault
 │   │   ├── passwords/       # Global password vault
 │   │   ├── projects/        # Projects list + per-project workspaces
-│   │   │   └── [id]/        # Pipeline, Notes, Calendar, Images, Docs, Passwords
+│   │   │   └── [id]/        # Pipeline, Notes, Progress, Details, Images, Docs, Passwords
 │   │   ├── tools/           # Markdown, HTML, JSON, and Whiteboard pages
 │   │   └── layout.tsx       # Sidebar layout with global search
 │   └── api/                 # All API routes (REST)
 │       ├── auth/            # Login, logout, register, refresh, me
 │       ├── calendar/        # Calendar event CRUD
 │       ├── dashboard/       # Aggregated dashboard data
-│       ├── documents/       # Document vault + R2 presign/confirm
-│       ├── images/          # Image vault + R2 presign/confirm
+│       ├── documents/       # Document vault + R2 presign/confirm/upload
+│       ├── images/          # Image vault + R2 presign/confirm/upload
 │       ├── notes/           # Note page CRUD
 │       ├── passwords/       # Password vault + AES reveal
 │       ├── pipeline/        # Kanban column CRUD
@@ -71,7 +71,7 @@ devhub/
 │       ├── search/          # Global cross-collection search
 │       └── tasks/           # Task CRUD with calendar sync
 ├── components/
-│   ├── dialogs/             # All form modals
+│   ├── dialogs/             # All form modals (TaskDialog, MoveSectionsDialog, etc.)
 │   ├── editor/              # BlockNote rich text editor wrapper
 │   ├── layout/              # Sidebar and navigation components
 │   ├── shared/              # Page-level view components
@@ -79,6 +79,7 @@ devhub/
 ├── hooks/                   # TanStack Query hooks per domain
 ├── lib/                     # Auth session, DB connection, response helpers
 ├── models/                  # Mongoose schemas
+├── proxy.ts                 # Next.js 16 authentication & route protection proxy
 ├── repositories/            # Data access layer (repository pattern)
 ├── schemas/                 # Zod validation schemas
 ├── services/                # Business logic layer
@@ -171,21 +172,21 @@ npm run start
 
 ## Architecture Overview
 
-### Authentication
+### Authentication & Proxy
 
-JWT-based auth using a short-lived **access token** and a long-lived **refresh token**, both stored as HTTP-only cookies. The middleware validates access on every protected route and automatically refreshes expired tokens.
+JWT-based auth using a short-lived **access token** and a long-lived **refresh token**, both stored as HTTP-only cookies. Next.js 16 `proxy.ts` validates access on every protected route and automatically performs silent token refreshes when the access token expires.
 
 ### Data Layer
 
 Follows a strict **Repository → Service → API Route** pattern:
 
 - **Repositories** handle raw MongoDB queries
-- **Services** enforce business logic and ownership verification
+- **Services** enforce business logic, ownership verification, and auto-touch activity timestamps
 - **API Routes** handle HTTP parsing, validation, and response formatting
 
 ### File Storage (R2)
 
-Uploads use a **presigned URL flow**: the client requests a presigned PUT URL from the API, uploads directly to R2 from the browser, then confirms the upload back to the API to create the database record. Files are never proxied through the server.
+Uploads support both direct presigned URLs and a high-performance **server streaming API**: the client posts `FormData` files to `/api/documents/upload` or `/api/projects/[id]/images/upload`, which streams them to R2 via Node.js `S3Client`, eliminating browser CORS preflight blocks.
 
 ### Password Security
 
@@ -215,6 +216,18 @@ When a task with a due date is created or updated, the service layer automatical
 ---
 
 ## Patch Notes
+
+### v2.1.0 — Progress Tracker Redesign, Task Modals, Field Drag & Drop, Upload API, Next.js 16 Auth Proxy & Dynamic Titles
+- **Section Rearrange Drag Preview Centering**: Pinned the dragged section card preview's exact center directly under the cursor (`transform: translate(-50%, -50%)`) inside container-relative absolute bounds.
+- **Sidebar Recently Updated Section**: Renamed sidebar projects list to `RECENTLY UPDATED` with direct header link (`/projects`), displaying top 5 most recently active projects (`updatedAt` descending).
+- **Auto-Touch Project Timestamp Triggers**: Added `ProjectService.touch(projectId)` across all Task, Note, Details, Pipeline, Image, Document, and Password create/edit/delete operations to keep project activity timestamps fresh.
+- **Dynamic Browser Tab Titles**: Added dynamic `document.title` updates across all pages (`<Project Name> - DevHub`, `Doc Vault - DevHub`, `Whiteboard - DevHub`, `MD Preview - DevHub`, etc.) with async loading guard to prevent title flickering.
+- **Next.js 16 Proxy Authentication (`proxy.ts`)**: Migrated middleware to Next.js 16's official `proxy.ts` convention with silent refresh token fallback in `getSession()`.
+- **Image & Document Upload API**: Built server-side `FormData` streaming upload endpoints for Cloudflare R2 (`/api/documents/upload` & `/api/projects/[id]/images/upload`) to eliminate browser CORS preflight restrictions.
+- **In-Section Field Drag & Drop**: Implemented native HTML5 drag-and-drop field reordering inside custom section cards in Edit Mode.
+- **Task Table Layout & Text Wrapping**: Applied `table-fixed` layout, established strict column widths, and enforced `break-all` wrapping for long task titles to prevent cell displacement.
+- **Full-Width Expanded Task View**: Expanded task description and comment rows to span all 7 columns of the progress table matching mockup specs.
+- **Edit Task Modal 2-Section Redesign**: Refactored `TaskDialog` into a clean 2-column layout with isolated right-side comments panel and real-time live query updates.
 
 ### v2.0.0 — Global Image Vault, Developer Tools Suite & Whiteboard Engine
 - **Global Image Vault**: Promoted Image Vault to a top-level sidebar route (`/images`) with global search, project filtering, and R2 uploads across all projects.

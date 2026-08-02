@@ -19,7 +19,7 @@ interface MoveSectionsDialogProps {
   onOpenChange: (open: boolean) => void;
   projectId: string;
   sections: ProjectSection[];
-  onSaveSuccess?: () => void;
+  onSaveSuccess?: (reorderedSections?: ProjectSection[]) => void;
 }
 
 const GAP = 16;
@@ -184,25 +184,20 @@ export function MoveSectionsDialog({
     reorderSection(secIdx, targetSecIdx);
   };
 
-  // Pointer Drag Handlers — Pinned exactly under grab cursor
+  // Pointer Drag Handlers — Pinned with card center directly under cursor
   const handlePointerDown = (secIdx: number, e: React.PointerEvent) => {
     if (e.button !== 0 && e.pointerType === "mouse") return;
     e.preventDefault();
 
-    const cardEl = (e.currentTarget as HTMLElement);
+    const cardEl = e.currentTarget as HTMLElement;
     const cardRect = cardEl.getBoundingClientRect();
-
-    // Store grab offset inside card
-    grabOffsetRef.current = {
-      x: e.clientX - cardRect.left,
-      y: e.clientY - cardRect.top,
-    };
+    const containerRect = containerRef.current?.getBoundingClientRect() || { left: 0, top: 0 };
 
     setDraggedSecIndex(secIdx);
     draggingIdRef.current = secIdx;
     setGhostPos({
-      x: e.clientX - grabOffsetRef.current.x,
-      y: e.clientY - grabOffsetRef.current.y,
+      x: e.clientX - containerRect.left,
+      y: e.clientY - containerRect.top,
       w: cardRect.width,
     });
 
@@ -215,9 +210,10 @@ export function MoveSectionsDialog({
     if (draggedSecIndex === null) return;
 
     const handlePointerMove = (e: PointerEvent) => {
+      const containerRect = containerRef.current?.getBoundingClientRect() || { left: 0, top: 0 };
       setGhostPos({
-        x: e.clientX - grabOffsetRef.current.x,
-        y: e.clientY - grabOffsetRef.current.y,
+        x: e.clientX - containerRect.left,
+        y: e.clientY - containerRect.top,
         w: ghostPos?.w || 320,
       });
 
@@ -273,7 +269,7 @@ export function MoveSectionsDialog({
           setSavedOrder(workingOrder);
           onOpenChange(false);
           toast.success("Section order saved.");
-          onSaveSuccess?.();
+          onSaveSuccess?.(reorderedSections);
         },
       }
     );
@@ -393,32 +389,32 @@ export function MoveSectionsDialog({
                 </div>
               );
             })}
+
+            {/* Ghost Floating Preview Element during Drag - Absolute inside containerRef */}
+            {ghostPos && draggedSecIndex !== null && sections[draggedSecIndex] && (
+              <div
+                style={{
+                  position: "absolute",
+                  left: `${ghostPos.x}px`,
+                  top: `${ghostPos.y}px`,
+                  width: `${ghostPos.w}px`,
+                  transform: "translate(-50%, -50%) rotate(-2deg) scale(1.03)",
+                }}
+                className="pointer-events-none z-[300] rounded-xl bg-[#F8F9F5] border-2 border-[#4F46C7] backdrop-blur-md shadow-2xl p-4 transition-transform"
+              >
+                <GripVertical className="absolute top-3.5 right-3.5 w-4 h-4 text-[#4F46C7]" />
+                <h4 className="font-heading text-sm font-semibold text-[#20221F] pr-12 truncate mb-3">
+                  {sections[draggedSecIndex].heading}
+                </h4>
+                <div className="space-y-2.5 opacity-90">
+                  <div className="h-2 rounded-full bg-[#4F46C7]/25 w-full" />
+                  <div className="h-2 rounded-full bg-[#4F46C7]/20 w-[78%]" />
+                  <div className="h-2 rounded-full bg-[#4F46C7]/15 w-[60%]" />
+                </div>
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Ghost Floating Preview Element during Drag - Pinned directly under grab cursor */}
-        {ghostPos && draggedSecIndex !== null && sections[draggedSecIndex] && (
-          <div
-            style={{
-              position: "fixed",
-              left: `${ghostPos.x}px`,
-              top: `${ghostPos.y}px`,
-              width: `${ghostPos.w}px`,
-              transform: "rotate(-2deg) scale(1.03)",
-            }}
-            className="pointer-events-none z-[300] rounded-xl bg-[#F8F9F5] border-2 border-[#4F46C7] backdrop-blur-md shadow-2xl p-4 transition-transform"
-          >
-            <GripVertical className="absolute top-3.5 right-3.5 w-4 h-4 text-[#4F46C7]" />
-            <h4 className="font-heading text-sm font-semibold text-[#20221F] pr-12 truncate mb-3">
-              {sections[draggedSecIndex].heading}
-            </h4>
-            <div className="space-y-2.5 opacity-90">
-              <div className="h-2 rounded-full bg-[#4F46C7]/25 w-full" />
-              <div className="h-2 rounded-full bg-[#4F46C7]/20 w-[78%]" />
-              <div className="h-2 rounded-full bg-[#4F46C7]/15 w-[60%]" />
-            </div>
-          </div>
-        )}
 
         {/* Modal Footer */}
         <DialogFooter className="p-4 border-t border-[#DAD8CE] bg-[#F8F9F5] flex flex-row items-center justify-between">

@@ -1,4 +1,5 @@
 import { PasswordRepository } from "@/repositories/password.repository";
+import { ProjectService } from "@/services/project.service";
 import { CreatePasswordInput, UpdatePasswordInput } from "@/schemas/password.schema";
 import { IPasswordDocument } from "@/models/Password";
 import { encryptSecret, decryptSecret } from "@/lib/crypto";
@@ -41,6 +42,10 @@ export class PasswordService {
       notes: data.notes || "",
     });
 
+    if (data.projectId) {
+      await ProjectService.touch(data.projectId);
+    }
+
     // Sanitize response
     created.encryptedSecret = "";
     created.iv = "";
@@ -70,7 +75,7 @@ export class PasswordService {
     id: string,
     data: UpdatePasswordInput
   ): Promise<IPasswordDocument> {
-    await this.verifyPasswordOwnership(userId, id);
+    const password = await this.verifyPasswordOwnership(userId, id);
 
     const updatePayload: Partial<Parameters<typeof PasswordRepository.update>[1]> = {
       label: data.label,
@@ -92,6 +97,13 @@ export class PasswordService {
       throw new Error("UPDATE_FAILED");
     }
 
+    if (password.projectId) {
+      await ProjectService.touch(password.projectId.toString());
+    }
+    if (data.projectId && data.projectId !== password.projectId?.toString()) {
+      await ProjectService.touch(data.projectId);
+    }
+
     // Sanitize response
     updated.encryptedSecret = "";
     updated.iv = "";
@@ -111,11 +123,15 @@ export class PasswordService {
    * Deletes a password record, checking ownership.
    */
   static async delete(userId: string, id: string): Promise<void> {
-    await this.verifyPasswordOwnership(userId, id);
+    const password = await this.verifyPasswordOwnership(userId, id);
 
     const deleted = await PasswordRepository.delete(id);
     if (!deleted) {
       throw new Error("DELETE_FAILED");
+    }
+
+    if (password.projectId) {
+      await ProjectService.touch(password.projectId.toString());
     }
   }
 }

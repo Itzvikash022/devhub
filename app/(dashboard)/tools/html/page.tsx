@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { SetPageHeader } from "@/components/layout/SetPageHeader";
+import { usePageTitle } from "@/hooks/usePageTitle";
 import { Code2, Copy, Trash2, FileCode, Check, Maximize2, Minimize2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -30,6 +31,7 @@ const SAMPLE_HTML = `<!DOCTYPE html>
 const LOCAL_STORAGE_KEY = "devhub_tool_html_content";
 
 export default function HtmlToolPage() {
+  usePageTitle("HTML Tools");
   const [content, setContent] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);

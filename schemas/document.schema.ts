@@ -6,7 +6,7 @@ export const presignDocumentSchema = z.object({
 });
 
 export const confirmDocumentSchema = z.object({
-  r2Key: z.string().min(1, "R2 key is required"),
+  r2Key: z.string().optional().default(""),
   title: z
     .string()
     .min(1, "Document title is required")

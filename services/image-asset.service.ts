@@ -104,6 +104,10 @@ export class ImageAssetService {
       isEncrypted,
     });
 
+    if (projectId) {
+      await ProjectService.touch(projectId);
+    }
+
     // Sanitize R2 key in confirmation return if encrypted
     if (created.isEncrypted) {
       created.r2Key = "";
@@ -193,5 +197,71 @@ export class ImageAssetService {
     if (!deleted) {
       throw new Error("DELETE_FAILED");
     }
+
+    if (asset.projectId) {
+      await ProjectService.touch(asset.projectId.toString());
+    }
+  }
+
+  /**
+   * Directly uploads an image file to R2 via server stream and creates DB record.
+   */
+  static async directUpload(
+    userId: string,
+    projectId: string,
+    file: File,
+    name: string,
+    category: any,
+    description?: string,
+    passphrase?: string | null
+  ): Promise<IImageAssetDocument> {
+    await ProjectService.getById(userId, projectId);
+
+    const fileType = file.type || "image/png";
+    const fileSize = file.size;
+
+    if (fileSize > MAX_IMAGE_SIZE) {
+      throw new Error("FILE_TOO_LARGE");
+    }
+
+    const uuid = randomUUID();
+    const extension = file.name.split(".").pop() || "png";
+    const r2Key = `images/${userId}/${projectId}/${uuid}.${extension}`;
+
+    const arrayBuffer = await file.arrayBuffer();
+    let buffer: Buffer | string = Buffer.from(arrayBuffer);
+
+    const isEncrypted = !!passphrase;
+    if (isEncrypted && passphrase) {
+      const base64Str = buffer.toString("base64");
+      const dataUri = `data:${fileType};base64,${base64Str}`;
+      buffer = encrypt(dataUri, passphrase);
+      await putObject(r2Key, buffer, "text/plain");
+    } else {
+      await putObject(r2Key, buffer, fileType);
+    }
+
+    const created = await ImageAssetRepository.create({
+      projectId,
+      name: name || file.name,
+      r2Key,
+      fileName: file.name,
+      fileType,
+      fileSize,
+      category: category || "mockup",
+      description: description || "",
+      expiryDate: null,
+      isEncrypted,
+    });
+
+    if (projectId) {
+      await ProjectService.touch(projectId);
+    }
+
+    if (created.isEncrypted) {
+      created.r2Key = "";
+    }
+
+    return created;
   }
 }

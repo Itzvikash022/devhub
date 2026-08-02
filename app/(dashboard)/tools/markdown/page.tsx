@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { SetPageHeader } from "@/components/layout/SetPageHeader";
 import { MarkdownViewer } from "@/components/shared/MarkdownViewer";
+import { usePageTitle } from "@/hooks/usePageTitle";
 import { FileCode, Copy, Trash2, FileText, Check, Maximize2, Minimize2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -39,6 +40,7 @@ interface ProjectMetadata {
 const LOCAL_STORAGE_KEY = "devhub_tool_markdown_content";
 
 export default function MarkdownToolPage() {
+  usePageTitle("MD Preview");
   const [content, setContent] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);

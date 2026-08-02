@@ -32,7 +32,7 @@ export class PipelineService {
     // Verify project ownership
     await ProjectService.getById(userId, projectId);
 
-    return PipelineRepository.create({
+    const created = await PipelineRepository.create({
       projectId,
       category: data.category,
       label: data.label,
@@ -40,6 +40,10 @@ export class PipelineService {
       environment: data.environment || null,
       notes: data.notes || "",
     });
+
+    await ProjectService.touch(projectId);
+
+    return created;
   }
 
   /**
@@ -63,12 +67,14 @@ export class PipelineService {
     id: string,
     data: UpdatePipelineItemInput
   ): Promise<IPipelineItemDocument> {
-    await this.verifyItemOwnership(userId, id);
+    const item = await this.verifyItemOwnership(userId, id);
 
     const updated = await PipelineRepository.update(id, data);
     if (!updated) {
       throw new Error("UPDATE_FAILED");
     }
+
+    await ProjectService.touch(item.projectId.toString());
 
     return updated;
   }
@@ -77,11 +83,13 @@ export class PipelineService {
    * Deletes a pipeline reference item, checking ownership.
    */
   static async delete(userId: string, id: string): Promise<void> {
-    await this.verifyItemOwnership(userId, id);
+    const item = await this.verifyItemOwnership(userId, id);
 
     const deleted = await PipelineRepository.delete(id);
     if (!deleted) {
       throw new Error("DELETE_FAILED");
     }
+
+    await ProjectService.touch(item.projectId.toString());
   }
 }

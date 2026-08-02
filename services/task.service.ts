@@ -51,6 +51,8 @@ export class TaskService {
       );
     }
 
+    await ProjectService.touch(projectId);
+
     return task;
   }
 
@@ -75,7 +77,7 @@ export class TaskService {
    * Updates task attributes, checking ownership, and syncing calendar deadlines.
    */
   static async update(userId: string, id: string, data: UpdateTaskInput): Promise<ITaskDocument> {
-    await this.verifyTaskOwnership(userId, id);
+    const task = await this.verifyTaskOwnership(userId, id);
 
     const updated = await TaskRepository.update(id, data);
     if (!updated) {
@@ -97,6 +99,8 @@ export class TaskService {
       await CalendarEventRepository.deleteBySourceId(id);
     }
 
+    await ProjectService.touch(task.projectId.toString());
+
     return updated;
   }
 
@@ -104,7 +108,7 @@ export class TaskService {
    * Deletes a task, checking ownership, and cleans up calendar deadlines.
    */
   static async delete(userId: string, id: string): Promise<void> {
-    await this.verifyTaskOwnership(userId, id);
+    const task = await this.verifyTaskOwnership(userId, id);
 
     const deleted = await TaskRepository.delete(id);
     if (!deleted) {
@@ -113,18 +117,22 @@ export class TaskService {
 
     // Calendar sync: Clean up linked event
     await CalendarEventRepository.deleteBySourceId(id);
+
+    await ProjectService.touch(task.projectId.toString());
   }
 
   /**
    * Appends a comment to a task, checking ownership.
    */
   static async addComment(userId: string, id: string, text: string): Promise<ITaskDocument> {
-    await this.verifyTaskOwnership(userId, id);
+    const task = await this.verifyTaskOwnership(userId, id);
 
     const updated = await TaskRepository.addComment(id, text);
     if (!updated) {
       throw new Error("COMMENT_FAILED");
     }
+
+    await ProjectService.touch(task.projectId.toString());
 
     return updated;
   }

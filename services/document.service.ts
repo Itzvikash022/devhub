@@ -2,7 +2,7 @@ import { DocumentRepository } from "@/repositories/document.repository";
 import { ProjectService } from "@/services/project.service";
 import { ConfirmDocumentInput, UpdateDocumentInput } from "@/schemas/document.schema";
 import { IDocumentDocument } from "@/models/Document";
-import { generatePresignedUploadUrl, generatePresignedDownloadUrl, deleteObject } from "@/lib/r2";
+import { generatePresignedUploadUrl, generatePresignedDownloadUrl, deleteObject, putObject } from "@/lib/r2";
 import { ALLOWED_DOCUMENT_TYPES, MAX_DOCUMENT_SIZE } from "@/constants/app.constants";
 import { randomUUID } from "crypto";
 
@@ -71,7 +71,7 @@ export class DocumentService {
       throw new Error("FILE_TOO_LARGE");
     }
 
-    return DocumentRepository.create({
+    const created = await DocumentRepository.create({
       userId,
       projectId: data.projectId || null,
       title: data.title,
@@ -81,6 +81,12 @@ export class DocumentService {
       fileSize: data.fileSize,
       category: data.category,
     });
+
+    if (data.projectId) {
+      await ProjectService.touch(data.projectId);
+    }
+
+    return created;
   }
 
   /**
@@ -102,7 +108,7 @@ export class DocumentService {
     id: string,
     data: UpdateDocumentInput
   ): Promise<IDocumentDocument> {
-    await this.verifyDocumentOwnership(userId, id);
+    const doc = await this.verifyDocumentOwnership(userId, id);
 
     // If updating projectId link, verify project ownership
     if (data.projectId) {
@@ -112,6 +118,13 @@ export class DocumentService {
     const updated = await DocumentRepository.update(id, data);
     if (!updated) {
       throw new Error("UPDATE_FAILED");
+    }
+
+    if (doc.projectId) {
+      await ProjectService.touch(doc.projectId.toString());
+    }
+    if (data.projectId && data.projectId !== doc.projectId?.toString()) {
+      await ProjectService.touch(data.projectId);
     }
 
     return updated;
@@ -139,5 +152,57 @@ export class DocumentService {
     if (!deleted) {
       throw new Error("DELETE_FAILED");
     }
+
+    if (doc.projectId) {
+      await ProjectService.touch(doc.projectId.toString());
+    }
+  }
+
+  /**
+   * Directly uploads a document file to R2 via server stream and creates DB record.
+   */
+  static async directUpload(
+    userId: string,
+    file: File,
+    title: string,
+    category: any,
+    projectId?: string | null
+  ): Promise<IDocumentDocument> {
+    if (projectId) {
+      await ProjectService.getById(userId, projectId);
+    }
+
+    const fileType = file.type || "application/octet-stream";
+    const fileSize = file.size;
+
+    if (fileSize > MAX_DOCUMENT_SIZE) {
+      throw new Error("FILE_TOO_LARGE");
+    }
+
+    const uuid = randomUUID();
+    const extension = file.name.split(".").pop() || "txt";
+    const r2Key = `documents/${userId}/${projectId || "global"}/${uuid}.${extension}`;
+
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    await putObject(r2Key, buffer, fileType);
+
+    const created = await DocumentRepository.create({
+      userId,
+      projectId: projectId || null,
+      title: title || file.name,
+      r2Key,
+      fileName: file.name,
+      fileType,
+      fileSize,
+      category: category || "other",
+    });
+
+    if (projectId) {
+      await ProjectService.touch(projectId);
+    }
+
+    return created;
   }
 }

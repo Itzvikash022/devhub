@@ -85,4 +85,15 @@ export class ProjectRepository {
     const result = await Project.findByIdAndDelete(id).exec();
     return !!result;
   }
+
+  /**
+   * Updates the project's updatedAt timestamp to current time.
+   */
+  static async touch(id: string): Promise<void> {
+    const parseResult = objectIdSchema.safeParse(id);
+    if (!parseResult.success) return;
+
+    await connectToDatabase();
+    await Project.findByIdAndUpdate(id, { updatedAt: new Date() }).exec();
+  }
 }

@@ -107,4 +107,11 @@ export class ProjectService {
     // Cascade unlink project documents (keep them in global vault)
     await DocumentRepository.unlinkAllByProjectId(id);
   }
+
+  /**
+   * Touches a project's updatedAt timestamp.
+   */
+  static async touch(id: string): Promise<void> {
+    await ProjectRepository.touch(id);
+  }
 }

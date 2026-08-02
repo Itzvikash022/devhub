@@ -36,6 +36,8 @@ export class ProjectDetailService {
       throw new Error("UPDATE_FAILED");
     }
 
+    await ProjectService.touch(projectId);
+
     return updated;
   }
 }

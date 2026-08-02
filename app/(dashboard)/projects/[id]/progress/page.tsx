@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { useParams } from "next/navigation";
 import {
   useTasksList,
@@ -54,7 +54,7 @@ export default function ProgressTab() {
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<TaskData | undefined>(undefined);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
@@ -62,6 +62,11 @@ export default function ProgressTab() {
   const { data: tasks = [], isLoading, error } = useTasksList(projectId);
   const { mutate: updateTask } = useUpdateTask(projectId);
   const { mutate: deleteTask, isPending: isDeletePending } = useDeleteTask(projectId);
+
+  // Derive live selectedTask dynamically from current tasks query array
+  const selectedTask = useMemo(() => {
+    return tasks.find((t) => t._id === selectedTaskId);
+  }, [tasks, selectedTaskId]);
 
   if (isLoading) {
     return (
@@ -86,13 +91,13 @@ export default function ProgressTab() {
   }
 
   const handleOpenCreate = () => {
-    setSelectedTask(undefined);
+    setSelectedTaskId(null);
     setDialogOpen(true);
   };
 
   const handleOpenEdit = (task: TaskData, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setSelectedTask(task);
+    setSelectedTaskId(task._id);
     setDialogOpen(true);
   };
 
@@ -264,28 +269,28 @@ export default function ProgressTab() {
 
           {/* Task List Table */}
           <div className="border-border bg-card overflow-x-auto rounded-md border">
-            <Table>
+            <Table className="w-full table-fixed">
               <TableHeader>
                 <TableRow className="border-border/50 bg-muted/10 border-b hover:bg-transparent">
-                  <TableHead className="w-12 text-center font-mono text-[10px] font-semibold tracking-wider">
+                  <TableHead className="w-10 text-center font-mono text-[10px] font-semibold tracking-wider">
                     Done
                   </TableHead>
-                  <TableHead className="font-mono text-[10px] font-semibold tracking-wider">
+                  <TableHead className="w-[36%] font-mono text-[10px] font-semibold tracking-wider">
                     Task
                   </TableHead>
-                  <TableHead className="w-32 font-mono text-[10px] font-semibold tracking-wider">
+                  <TableHead className="w-28 font-mono text-[10px] font-semibold tracking-wider">
                     Status
                   </TableHead>
-                  <TableHead className="w-32 font-mono text-[10px] font-semibold tracking-wider">
+                  <TableHead className="w-28 font-mono text-[10px] font-semibold tracking-wider">
                     Priority
                   </TableHead>
-                  <TableHead className="w-36 font-mono text-[10px] font-semibold tracking-wider">
+                  <TableHead className="w-32 font-mono text-[10px] font-semibold tracking-wider">
                     Due Date
                   </TableHead>
-                  <TableHead className="w-36 font-mono text-[10px] font-semibold tracking-wider">
+                  <TableHead className="w-32 font-mono text-[10px] font-semibold tracking-wider">
                     Assignee
                   </TableHead>
-                  <TableHead className="w-24 text-right font-mono text-[10px] font-semibold tracking-wider">
+                  <TableHead className="w-20 text-right font-mono text-[10px] font-semibold tracking-wider">
                     Actions
                   </TableHead>
                 </TableRow>
@@ -309,46 +314,42 @@ export default function ProgressTab() {
                       task.status !== "done";
 
                     return (
-                      <TableRow key={task._id} className="border-border/50 group border-b">
-                        {/* Checkbox done toggle */}
-                        <TableCell className="py-4 text-center align-top">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleDone(task);
-                            }}
-                            className={`mt-0.5 w-4 h-4 rounded border shrink-0 flex items-center justify-center transition-colors ${
-                              task.status === "done"
-                                ? "bg-[#4F46C7] border-[#4F46C7]"
-                                : "border-[#DAD8CE] hover:border-[#4F46C7] bg-[#EEF0EA]"
-                            }`}
-                            aria-label={`Mark task as ${task.status === "done" ? "todo" : "done"}`}
-                          >
-                            {task.status === "done" && (
-                              <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10">
-                                <path
-                                  d="M1.5 5l2.5 2.5 4.5-5"
-                                  stroke="currentColor"
-                                  strokeWidth="1.5"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                />
-                              </svg>
-                            )}
-                          </button>
-                        </TableCell>
-
-                        {/* Title and collapsible details box */}
-                        <TableCell className="py-4 align-top max-w-md">
-                          <div className="space-y-2">
-                            {/* Clickable title expands/collapses the box (no arrow) */}
-                            <div
-                              onClick={() => toggleExpand(task._id)}
-                              className="flex items-center gap-2 cursor-pointer select-none group/title"
+                      <Fragment key={task._id}>
+                        <TableRow className="border-border/50 group border-b">
+                          {/* Checkbox done toggle */}
+                          <TableCell className="py-4 text-center align-top">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleDone(task);
+                              }}
+                              className={`mt-0.5 w-4 h-4 rounded border shrink-0 flex items-center justify-center transition-colors ${
+                                task.status === "done"
+                                  ? "bg-[#4F46C7] border-[#4F46C7]"
+                                  : "border-[#DAD8CE] hover:border-[#4F46C7] bg-[#EEF0EA]"
+                              }`}
+                              aria-label={`Mark task as ${task.status === "done" ? "todo" : "done"}`}
                             >
+                              {task.status === "done" && (
+                                <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10">
+                                  <path
+                                    d="M1.5 5l2.5 2.5 4.5-5"
+                                    stroke="currentColor"
+                                    strokeWidth="1.5"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              )}
+                            </button>
+                          </TableCell>
+
+                          {/* Title and collapsible details trigger */}
+                          <TableCell className="py-4 align-top whitespace-normal break-all [overflow-wrap:anywhere] overflow-hidden">
+                            <div className="flex items-start gap-2 cursor-pointer select-none group/title" onClick={() => toggleExpand(task._id)}>
                               <span
-                                className={`font-sans text-sm font-medium transition-colors break-all break-words ${
+                                className={`font-sans text-sm font-medium transition-colors break-all [overflow-wrap:anywhere] whitespace-normal flex-1 ${
                                   task.status === "done"
                                     ? "text-muted-foreground line-through"
                                     : "text-foreground group-hover/title:text-[#4F46C7]"
@@ -359,39 +360,112 @@ export default function ProgressTab() {
 
                               {/* Comment count badge */}
                               {task.comments.length > 0 && (
-                                <span className="text-muted-foreground bg-muted/65 inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 font-mono text-[9px]">
+                                <span className="text-muted-foreground bg-muted/65 inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 font-mono text-[9px] mt-0.5">
                                   <MessageSquare className="h-2.5 w-2.5" />
                                   {task.comments.length}
                                 </span>
                               )}
                             </div>
+                          </TableCell>
 
-                            {/* Expanded Card Body: Description + Comments + Add Comment */}
-                            {isExpanded && (
-                              <div className="bg-[#F8F9F5] border border-[#DAD8CE] rounded-md p-3 space-y-3 max-w-xl text-xs">
-                                {/* Description */}
-                                {task.description ? (
-                                  <p className="text-[#20221F] font-inter leading-relaxed break-all break-words whitespace-pre-wrap">
-                                    {task.description}
-                                  </p>
+                          {/* Status badge */}
+                          <TableCell className="py-4 align-top">
+                            <TaskStatusBadge status={task.status} />
+                          </TableCell>
+
+                          {/* Priority badge */}
+                          <TableCell className="py-4 align-top">
+                            <PriorityBadge priority={task.priority} />
+                          </TableCell>
+
+                          {/* Due Date */}
+                          <TableCell className="py-4 align-top">
+                            {task.dueDate ? (
+                              <span
+                                className={`inline-flex items-center gap-1.5 font-mono text-xs ${
+                                  isOverdue ? "font-semibold text-red-500" : "text-muted-foreground"
+                                }`}
+                              >
+                                {isOverdue ? (
+                                  <AlertCircle className="h-3.5 w-3.5" />
                                 ) : (
-                                  <p className="text-[#6B6E64] font-inter italic text-[11px]">
-                                    No description provided.
-                                  </p>
+                                  <Calendar className="h-3.5 w-3.5" />
                                 )}
+                                {new Date(task.dueDate).toLocaleDateString()}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground/60 font-mono text-xs">—</span>
+                            )}
+                          </TableCell>
 
-                                {/* Comments Section with Timestamps */}
-                                <div className="border-t border-[#DAD8CE] pt-2.5 space-y-2">
+                          {/* Assignee */}
+                          <TableCell className="py-4 align-top">
+                            {task.assignee ? (
+                              <span className="text-foreground font-sans text-xs font-medium truncate max-w-[120px] block">
+                                {task.assignee}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground/60 font-sans text-xs italic">
+                                Unassigned
+                              </span>
+                            )}
+                          </TableCell>
+
+                          {/* Actions */}
+                          <TableCell className="py-3 text-right align-top">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => handleOpenEdit(task, e)}
+                                className="text-muted-foreground hover:text-foreground hover:bg-muted h-8 w-8"
+                                title="Edit task"
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => handleOpenDelete(task._id, e)}
+                                className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                                title="Delete task"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+
+                        {/* Full Width Expanded Section (Description + Comments) matching Image 2 mockup */}
+                        {isExpanded && (
+                          <TableRow className="border-border/50 bg-[#F8F9F5]/30 hover:bg-[#F8F9F5]/30 border-b">
+                            <TableCell colSpan={7} className="px-6 py-4 whitespace-normal">
+                              <div className="space-y-4 w-full">
+                                {/* Description Card */}
+                                <div className="bg-[#F8F9F5] border border-[#DAD8CE] rounded-md p-4 space-y-1.5 w-full">
+                                  {task.description ? (
+                                    <p className="text-[#20221F] font-inter text-xs leading-relaxed break-words whitespace-pre-wrap">
+                                      {task.description}
+                                    </p>
+                                  ) : (
+                                    <p className="text-[#6B6E64] font-inter italic text-[11px]">
+                                      No description provided.
+                                    </p>
+                                  )}
+                                </div>
+
+                                {/* Comments Card */}
+                                <div className="bg-[#F8F9F5] border border-[#DAD8CE] rounded-md p-4 space-y-3 w-full">
                                   <span className="font-mono text-[10px] uppercase text-[#6B6E64] font-semibold tracking-wider block">
                                     Comments ({task.comments.length})
                                   </span>
 
-                                  {task.comments.length > 0 ? (
-                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                  {task.comments.length > 0 && (
+                                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                                       {task.comments.map((comment, idx) => (
                                         <div
                                           key={comment._id || idx}
-                                          className="bg-[#EEF0EA] border border-[#DAD8CE] rounded p-2 text-xs space-y-0.5"
+                                          className="bg-[#EEF0EA] border border-[#DAD8CE] rounded p-2.5 text-xs space-y-1"
                                         >
                                           <div className="flex items-center justify-between text-[10px] font-mono text-[#6B6E64]">
                                             <span className="font-medium">{comment.userName || "Team Member"}</span>
@@ -399,13 +473,13 @@ export default function ProgressTab() {
                                               {format(new Date(comment.createdAt), "MMM d, yyyy h:mm a")}
                                             </span>
                                           </div>
-                                          <p className="font-inter text-[12px] text-[#20221F] break-all break-words whitespace-pre-wrap">
+                                          <p className="font-inter text-xs text-[#20221F] break-words whitespace-pre-wrap">
                                             {comment.text}
                                           </p>
                                         </div>
                                       ))}
                                     </div>
-                                  ) : null}
+                                  )}
 
                                   {/* Direct Inline Add Comment Form */}
                                   <TaskInlineCommentForm
@@ -414,77 +488,10 @@ export default function ProgressTab() {
                                   />
                                 </div>
                               </div>
-                            )}
-                          </div>
-                        </TableCell>
-
-                        {/* Status badge */}
-                        <TableCell className="py-4 align-top">
-                          <TaskStatusBadge status={task.status} />
-                        </TableCell>
-
-                        {/* Priority badge */}
-                        <TableCell className="py-4 align-top">
-                          <PriorityBadge priority={task.priority} />
-                        </TableCell>
-
-                        {/* Due Date */}
-                        <TableCell className="py-4 align-top">
-                          {task.dueDate ? (
-                            <span
-                              className={`inline-flex items-center gap-1.5 font-mono text-xs ${
-                                isOverdue ? "font-semibold text-red-500" : "text-muted-foreground"
-                              }`}
-                            >
-                              {isOverdue ? (
-                                <AlertCircle className="h-3.5 w-3.5" />
-                              ) : (
-                                <Calendar className="h-3.5 w-3.5" />
-                              )}
-                              {new Date(task.dueDate).toLocaleDateString()}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground/60 font-mono text-xs">—</span>
-                          )}
-                        </TableCell>
-
-                        {/* Assignee */}
-                        <TableCell className="py-4 align-top">
-                          {task.assignee ? (
-                            <span className="text-foreground font-sans text-xs font-medium truncate max-w-[120px] block">
-                              {task.assignee}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground/60 font-sans text-xs italic">
-                              Unassigned
-                            </span>
-                          )}
-                        </TableCell>
-
-                        {/* Actions */}
-                        <TableCell className="py-3 text-right align-top">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => handleOpenEdit(task, e)}
-                              className="text-muted-foreground hover:text-foreground hover:bg-muted h-8 w-8"
-                              title="Edit task"
-                            >
-                              <Edit2 className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => handleOpenDelete(task._id, e)}
-                              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8"
-                              title="Delete task"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Fragment>
                     );
                   })
                 )}

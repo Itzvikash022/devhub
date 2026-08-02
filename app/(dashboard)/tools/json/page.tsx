@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { SetPageHeader } from "@/components/layout/SetPageHeader";
+import { usePageTitle } from "@/hooks/usePageTitle";
 import { Braces, Copy, Trash2, CheckCircle2, AlertTriangle, Check, Minimize2, Maximize2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,6 +27,7 @@ const SAMPLE_JSON = `{
 const LOCAL_STORAGE_KEY = "devhub_tool_json_content";
 
 export default function JsonToolPage() {
+  usePageTitle("JSON Tools");
   const [content, setContent] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);

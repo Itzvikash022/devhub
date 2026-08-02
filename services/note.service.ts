@@ -34,12 +34,16 @@ export class NoteService {
     const nextOrder =
       existingNotes.length > 0 ? existingNotes[existingNotes.length - 1].order + 1 : 0;
 
-    return NoteRepository.create({
+    const created = await NoteRepository.create({
       projectId,
       title: data.title || "Untitled",
       content: data.content || "[]",
       order: data.order !== undefined && data.order !== 0 ? data.order : nextOrder,
     });
+
+    await ProjectService.touch(projectId);
+
+    return created;
   }
 
   /**
@@ -64,12 +68,14 @@ export class NoteService {
    */
   static async update(userId: string, id: string, data: UpdateNoteInput): Promise<INoteDocument> {
     // Verify ownership
-    await this.verifyNoteOwnership(userId, id);
+    const note = await this.verifyNoteOwnership(userId, id);
 
     const updated = await NoteRepository.update(id, data);
     if (!updated) {
       throw new Error("UPDATE_FAILED");
     }
+
+    await ProjectService.touch(note.projectId.toString());
 
     return updated;
   }
@@ -79,12 +85,14 @@ export class NoteService {
    */
   static async delete(userId: string, id: string): Promise<void> {
     // Verify ownership
-    await this.verifyNoteOwnership(userId, id);
+    const note = await this.verifyNoteOwnership(userId, id);
 
     const deleted = await NoteRepository.delete(id);
     if (!deleted) {
       throw new Error("DELETE_FAILED");
     }
+
+    await ProjectService.touch(note.projectId.toString());
   }
 
   /**
@@ -99,5 +107,6 @@ export class NoteService {
     await ProjectService.getById(userId, projectId);
 
     await NoteRepository.updateOrders(reorderData);
+    await ProjectService.touch(projectId);
   }
 }

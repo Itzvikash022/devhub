@@ -9,6 +9,7 @@ import { StatusChip } from "@/components/shared/StatusChip";
 import { ProjectDialog } from "@/components/dialogs/ProjectDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { SetPageHeader } from "@/components/layout/SetPageHeader";
+import { usePageTitle } from "@/hooks/usePageTitle";
 import { ROUTES } from "@/constants/routes.constants";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +25,7 @@ export default function ProjectWorkspaceLayout({ children }: ProjectWorkspaceLay
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const { data: project, isLoading, error } = useProjectDetails(id);
+  usePageTitle(project?.name || "");
   const { mutate: updateProject, isPending: isArchivePending } = useUpdateProject(id);
   const { mutate: deleteProject, isPending: isDeletePending } = useDeleteProject(id);
 

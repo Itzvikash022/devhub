@@ -11,6 +11,7 @@ import {
   Layers,
 } from "lucide-react";
 import { useDashboardData } from "@/hooks/useDashboard";
+import { usePageTitle } from "@/hooks/usePageTitle";
 import { ProjectDialog } from "@/components/dialogs/ProjectDialog";
 import { ROUTES } from "@/constants/routes.constants";
 import { StatusChip } from "@/components/shared/StatusChip";
@@ -23,6 +24,7 @@ import { format, formatDistanceToNow } from "date-fns";
 const NOW = Date.now();
 
 export default function DashboardPage() {
+  usePageTitle("DevHub");
   const { data, isLoading, error } = useDashboardData();
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
   const queryClient = useQueryClient();

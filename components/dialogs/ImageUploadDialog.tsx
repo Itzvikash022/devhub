@@ -109,10 +109,11 @@ export function ImageUploadDialog({ open, onOpenChange, projectId }: ImageUpload
     setFileName(file.name);
 
     const baseName = file.name.substring(0, file.name.lastIndexOf(".")) || file.name;
-    setValue("name", baseName);
-    setValue("fileName", file.name);
-    setValue("fileType", file.type);
-    setValue("fileSize", file.size);
+    const fileType = file.type || "image/png";
+    setValue("name", baseName, { shouldValidate: true });
+    setValue("fileName", file.name, { shouldValidate: true });
+    setValue("fileType", fileType, { shouldValidate: true });
+    setValue("fileSize", file.size, { shouldValidate: true });
   };
 
   const onSubmit = async (data: ConfirmImageAssetInput) => {
@@ -136,68 +137,45 @@ export function ImageUploadDialog({ open, onOpenChange, projectId }: ImageUpload
         return;
       }
       setPassphraseError("");
-      data.passphrase = passphraseVal;
-    } else {
-      data.passphrase = null;
     }
 
     setIsSubmitting(true);
+    setIsUploading(true);
     try {
-      // 1. Get presigned R2 upload URL
-      const presignRes = await fetch(`/api/projects/${targetProjectId}/images/presign`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fileName: selectedFile.name,
-          fileType: selectedFile.type,
-        }),
-      });
-      const presignJson = await presignRes.json();
-      if (!presignJson.success) {
-        throw new Error(presignJson.error?.message || "Failed to get presigned upload URL.");
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("name", data.name || selectedFile.name);
+      formData.append("category", data.category || "mockup");
+      formData.append("description", data.description || "");
+      if (encryptEnabled && passphraseVal) {
+        formData.append("passphrase", passphraseVal);
       }
 
-      const { uploadUrl, r2Key } = presignJson.data;
-
-      // 2. Upload file bytes directly to R2
-      setIsUploading(true);
-      const uploadRes = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Type": selectedFile.type,
-        },
-        body: selectedFile,
-      });
-
-      if (!uploadRes.ok) {
-        throw new Error("Failed to upload image file to R2 storage.");
-      }
-
-      setIsUploading(false);
-
-      // 3. Confirm upload
-      const confirmRes = await fetch(`/api/projects/${targetProjectId}/images/confirm`, {
+      const res = await fetch(`/api/projects/${targetProjectId}/images/upload`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          r2Key,
-        }),
+        body: formData,
       });
-      const confirmJson = await confirmRes.json();
-      if (!confirmJson.success) {
-        throw new Error(confirmJson.error?.message || "Failed to confirm upload.");
+
+      const json = await res.json();
+      if (!json.success) {
+        throw new Error(json.error?.message || "Failed to upload image.");
       }
 
       queryClient.invalidateQueries({ queryKey: ["images"] });
-      toast.success(`Image "${data.name}" uploaded successfully.`);
+      toast.success(`Image "${data.name || selectedFile.name}" uploaded successfully.`);
       handleOpenChange(false);
     } catch (err) {
-      setIsUploading(false);
       toast.error(err instanceof Error ? err.message : "Upload failed.");
     } finally {
+      setIsUploading(false);
       setIsSubmitting(false);
     }
+  };
+
+  const onInvalid = (errors: Record<string, any>) => {
+    const firstErrorKey = Object.keys(errors)[0];
+    const firstError = errors[firstErrorKey];
+    toast.error(firstError?.message || `Validation error on ${firstErrorKey || "form"}.`);
   };
 
   const handleToggleEncrypt = () => {
@@ -210,7 +188,7 @@ export function ImageUploadDialog({ open, onOpenChange, projectId }: ImageUpload
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent showCloseButton={false} className="max-h-[90vh] overflow-y-auto sm:max-w-md">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4">
           <DialogHeader>
             <DialogTitle>Upload Image Asset</DialogTitle>
             <DialogDescription>

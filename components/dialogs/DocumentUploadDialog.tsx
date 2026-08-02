@@ -26,6 +26,7 @@ import {
   useUpdateDocument,
   DocumentData,
 } from "@/hooks/useDocuments";
+import { useQueryClient } from "@tanstack/react-query";
 import { useProjectsList } from "@/hooks/useProjects";
 import { Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -44,6 +45,7 @@ export function DocumentUploadDialog({
   defaultProjectId,
   item,
 }: DocumentUploadDialogProps) {
+  const queryClient = useQueryClient();
   const isEdit = !!item;
   const { data: projects = [] } = useProjectsList();
 
@@ -138,10 +140,11 @@ export function DocumentUploadDialog({
 
     // Auto-fill Title with file base name
     const cleanName = file.name.substring(0, file.name.lastIndexOf(".")) || file.name;
-    setValue("title", cleanName);
-    setValue("fileName", file.name);
-    setValue("fileType", file.type);
-    setValue("fileSize", file.size);
+    const fileType = file.type || "application/octet-stream";
+    setValue("title", cleanName, { shouldValidate: true });
+    setValue("fileName", file.name, { shouldValidate: true });
+    setValue("fileType", fileType, { shouldValidate: true });
+    setValue("fileSize", file.size, { shouldValidate: true });
   };
 
   const onSubmit = async (data: ConfirmDocumentInput) => {
@@ -166,47 +169,47 @@ export function DocumentUploadDialog({
         return;
       }
 
+      setIsUploading(true);
       try {
-        // 1. Fetch R2 upload details
-        const { uploadUrl, r2Key } = await presignDoc({
-          fileName: selectedFile.name,
-          fileType: selectedFile.type,
-        });
-
-        // 2. Perform direct R2 PUT upload
-        setIsUploading(true);
-        const uploadRes = await fetch(uploadUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": selectedFile.type,
-          },
-          body: selectedFile,
-        });
-
-        if (!uploadRes.ok) {
-          throw new Error("Failed to upload document file directly to R2.");
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+        formData.append("title", data.title || selectedFile.name);
+        formData.append("category", data.category || "other");
+        if (data.projectId) {
+          formData.append("projectId", data.projectId);
         }
 
-        setIsUploading(false);
-
-        // 3. Confirm metadata upload
-        await confirmDoc({
-          ...data,
-          r2Key,
+        const res = await fetch("/api/documents/upload", {
+          method: "POST",
+          body: formData,
         });
 
+        const json = await res.json();
+        if (!json.success) {
+          throw new Error(json.error?.message || "Failed to upload document.");
+        }
+
+        queryClient.invalidateQueries({ queryKey: ["documents"] });
+        toast.success(`Document "${data.title || selectedFile.name}" uploaded successfully.`);
         handleOpenChange(false);
       } catch (err) {
-        setIsUploading(false);
         toast.error(err instanceof Error ? err.message : "Document upload failed.");
+      } finally {
+        setIsUploading(false);
       }
     }
+  };
+
+  const onInvalid = (errors: Record<string, any>) => {
+    const firstErrorKey = Object.keys(errors)[0];
+    const firstError = errors[firstErrorKey];
+    toast.error(firstError?.message || `Validation error on ${firstErrorKey || "form"}.`);
   };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent showCloseButton={false} className="max-h-[90vh] overflow-y-auto sm:max-w-md">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4">
           <DialogHeader>
             <DialogTitle>{isEdit ? "Edit Document Metadata" : "Upload Document"}</DialogTitle>
             <DialogDescription>

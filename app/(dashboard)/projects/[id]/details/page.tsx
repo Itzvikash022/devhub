@@ -28,8 +28,10 @@ import {
   Save,
   X,
   ArrowUpDown,
+  GripVertical,
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { ProjectSection, ProjectField } from "@/hooks/useProjects";
 import { ProjectDialog } from "@/components/dialogs/ProjectDialog";
 import {
@@ -103,6 +105,10 @@ export default function ProjectDetailsTab() {
   const [projectEditOpen, setProjectEditOpen] = useState(false);
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const [editableSections, setEditableSections] = useState<ProjectSection[]>([]);
+
+  // Drag-and-drop state for field reordering within a section
+  const [draggedField, setDraggedField] = useState<{ secIndex: number; fieldIndex: number } | null>(null);
+  const [dragOverField, setDragOverField] = useState<{ secIndex: number; fieldIndex: number } | null>(null);
 
   // Queries & Mutations
   const {
@@ -211,6 +217,51 @@ export default function ProjectDetailsTab() {
     );
   };
 
+  // Field drag-and-drop reorder handlers
+  const handleFieldDragStart = (secIndex: number, fieldIndex: number, e: React.DragEvent) => {
+    setDraggedField({ secIndex, fieldIndex });
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", `${secIndex}:${fieldIndex}`);
+  };
+
+  const handleFieldDragOver = (secIndex: number, fieldIndex: number, e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (draggedField && draggedField.secIndex === secIndex && draggedField.fieldIndex !== fieldIndex) {
+      setDragOverField({ secIndex, fieldIndex });
+    }
+  };
+
+  const handleFieldDrop = (secIndex: number, targetFieldIndex: number, e: React.DragEvent) => {
+    e.preventDefault();
+    if (!draggedField || draggedField.secIndex !== secIndex) return;
+
+    const fromIndex = draggedField.fieldIndex;
+    const toIndex = targetFieldIndex;
+
+    if (fromIndex !== toIndex) {
+      setEditableSections((prev) =>
+        prev.map((sec, i) => {
+          if (i === secIndex) {
+            const newFields = [...sec.fields];
+            const [moved] = newFields.splice(fromIndex, 1);
+            newFields.splice(toIndex, 0, moved);
+            return { ...sec, fields: newFields };
+          }
+          return sec;
+        })
+      );
+    }
+
+    setDraggedField(null);
+    setDragOverField(null);
+  };
+
+  const handleFieldDragEnd = () => {
+    setDraggedField(null);
+    setDragOverField(null);
+  };
+
   // State mutation actions
   const addSection = () => {
     setEditableSections([...editableSections, { heading: "New Section", fields: [] }]);
@@ -310,6 +361,17 @@ export default function ProjectDetailsTab() {
         <div className="flex items-center gap-2">
           {isEditing ? (
             <>
+              {editableSections.length > 1 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setMoveDialogOpen(true)}
+                  className="h-8 gap-1.5 text-xs text-[#4F46C7] border-[#4F46C7]/30 hover:bg-[#4F46C7]/10"
+                >
+                  <ArrowUpDown className="h-3.5 w-3.5" />
+                  Move Sections
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={handleCancel} disabled={isSaving}>
                 <X className="mr-1 h-3.5 w-3.5" />
                 Cancel
@@ -397,84 +459,111 @@ export default function ProjectDetailsTab() {
                           <span className="col-span-2">Type</span>
                           <span className="col-span-6">Value</span>
                         </div>
-                        {sec.fields.map((field, fieldIndex) => (
-                          <div key={fieldIndex} className="grid grid-cols-12 items-start gap-2">
-                            {/* Key Input */}
-                            <div className="col-span-12 md:col-span-3">
-                              <Input
-                                value={field.key}
-                                onChange={(e) =>
-                                  updateField(secIndex, fieldIndex, "key", e.target.value)
-                                }
-                                placeholder="Key (e.g. Framework)"
-                                className="bg-background h-9 text-xs"
-                              />
-                            </div>
+                        {sec.fields.map((field, fieldIndex) => {
+                          const isDragging =
+                            draggedField?.secIndex === secIndex &&
+                            draggedField?.fieldIndex === fieldIndex;
+                          const isDragOver =
+                            dragOverField?.secIndex === secIndex &&
+                            dragOverField?.fieldIndex === fieldIndex;
 
-                            {/* Type Dropdown */}
-                            <div className="col-span-12 md:col-span-2">
-                              <select
-                                value={field.type}
-                                onChange={(e) =>
-                                  updateField(
-                                    secIndex,
-                                    fieldIndex,
-                                    "type",
-                                    e.target.value as "text" | "list" | "link" | "tag[]"
-                                  )
-                                }
-                                className="border-input bg-background text-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-2.5 py-1 text-xs shadow-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
-                              >
-                                <option value="text">Text</option>
-                                <option value="link">Link</option>
-                                <option value="list">List (lines)</option>
-                                <option value="tag[]">Tags (comma)</option>
-                              </select>
-                            </div>
-
-                            {/* Value Input / Textarea */}
-                            <div className="col-span-11 md:col-span-6">
-                              {field.type === "list" ? (
-                                <Textarea
-                                  value={field.value}
-                                  onChange={(e) =>
-                                    updateField(secIndex, fieldIndex, "value", e.target.value)
-                                  }
-                                  placeholder="Enter items, one per line..."
-                                  className="bg-background h-[38px] min-h-[38px] resize-y px-3 py-1.5 text-xs"
-                                />
-                              ) : (
-                                <Input
-                                  value={field.value}
-                                  onChange={(e) =>
-                                    updateField(secIndex, fieldIndex, "value", e.target.value)
-                                  }
-                                  placeholder={
-                                    field.type === "link"
-                                      ? "https://example.com"
-                                      : field.type === "tag[]"
-                                        ? "react, nextjs, tailwind"
-                                        : "Value"
-                                  }
-                                  className="bg-background h-9 text-xs"
-                                />
+                          return (
+                            <div
+                              key={fieldIndex}
+                              draggable
+                              onDragStart={(e) => handleFieldDragStart(secIndex, fieldIndex, e)}
+                              onDragOver={(e) => handleFieldDragOver(secIndex, fieldIndex, e)}
+                              onDrop={(e) => handleFieldDrop(secIndex, fieldIndex, e)}
+                              onDragEnd={handleFieldDragEnd}
+                              className={cn(
+                                "grid grid-cols-12 items-start gap-2 p-1.5 rounded-md transition-all",
+                                isDragging && "opacity-30 border border-dashed border-[#4F46C7] bg-[#4F46C7]/5",
+                                isDragOver && "border-t-2 border-t-[#4F46C7] bg-[#4F46C7]/10"
                               )}
-                            </div>
+                            >
+                              {/* Key Input with Drag Grip Handle */}
+                              <div className="col-span-12 md:col-span-3 flex items-center gap-1.5">
+                                <div
+                                  className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground/50 hover:text-[#4F46C7] transition-colors shrink-0"
+                                  title="Drag to reorder field"
+                                >
+                                  <GripVertical className="h-4 w-4" />
+                                </div>
+                                <Input
+                                  value={field.key}
+                                  onChange={(e) =>
+                                    updateField(secIndex, fieldIndex, "key", e.target.value)
+                                  }
+                                  placeholder="Key (e.g. Framework)"
+                                  className="bg-background h-9 text-xs flex-1"
+                                />
+                              </div>
 
-                            {/* Delete Field */}
-                            <div className="col-span-1 flex justify-end pt-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeField(secIndex, fieldIndex)}
-                                className="text-muted-foreground hover:text-destructive h-7 w-7"
-                                title="Remove field"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
+                              {/* Type Dropdown */}
+                              <div className="col-span-12 md:col-span-2">
+                                <select
+                                  value={field.type}
+                                  onChange={(e) =>
+                                    updateField(
+                                      secIndex,
+                                      fieldIndex,
+                                      "type",
+                                      e.target.value as "text" | "list" | "link" | "tag[]"
+                                    )
+                                  }
+                                  className="border-input bg-background text-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-2.5 py-1 text-xs shadow-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+                                >
+                                  <option value="text">Text</option>
+                                  <option value="link">Link</option>
+                                  <option value="list">List (lines)</option>
+                                  <option value="tag[]">Tags (comma)</option>
+                                </select>
+                              </div>
+
+                              {/* Value Input / Textarea */}
+                              <div className="col-span-11 md:col-span-6">
+                                {field.type === "list" ? (
+                                  <Textarea
+                                    value={field.value}
+                                    onChange={(e) =>
+                                      updateField(secIndex, fieldIndex, "value", e.target.value)
+                                    }
+                                    placeholder="Enter items, one per line..."
+                                    className="bg-background h-[38px] min-h-[38px] resize-y px-3 py-1.5 text-xs"
+                                  />
+                                ) : (
+                                  <Input
+                                    value={field.value}
+                                    onChange={(e) =>
+                                      updateField(secIndex, fieldIndex, "value", e.target.value)
+                                    }
+                                    placeholder={
+                                      field.type === "link"
+                                        ? "https://example.com"
+                                        : field.type === "tag[]"
+                                          ? "react, nextjs, tailwind"
+                                          : "Value"
+                                    }
+                                    className="bg-background h-9 text-xs"
+                                  />
+                                )}
+                              </div>
+
+                              {/* Delete Field */}
+                              <div className="col-span-1 flex justify-end pt-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeField(secIndex, fieldIndex)}
+                                  className="text-muted-foreground hover:text-destructive h-7 w-7"
+                                  title="Remove field"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
 
@@ -680,7 +769,12 @@ export default function ProjectDetailsTab() {
         open={moveDialogOpen}
         onOpenChange={setMoveDialogOpen}
         projectId={projectId}
-        sections={allSections}
+        sections={isEditing ? editableSections : allSections}
+        onSaveSuccess={(reordered) => {
+          if (isEditing && reordered) {
+            setEditableSections(reordered);
+          }
+        }}
       />
     </div>
   );

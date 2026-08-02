@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Plus, Search, Layers, FileText, CheckSquare, Archive } from "lucide-react";
 import { useProjectsList } from "@/hooks/useProjects";
+import { usePageTitle } from "@/hooks/usePageTitle";
 import { Input } from "@/components/ui/input";
 import { StatusChip } from "@/components/shared/StatusChip";
 import { ProjectDialog } from "@/components/dialogs/ProjectDialog";
@@ -21,6 +22,7 @@ const statusFilters: { value: FilterStatus; label: string }[] = [
 ];
 
 export default function ProjectsPage() {
+  usePageTitle("Projects");
   const [filter, setFilter] = useState<FilterStatus>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);

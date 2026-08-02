@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { SetPageHeader } from "@/components/layout/SetPageHeader";
+import { usePageTitle } from "@/hooks/usePageTitle";
 import {
   MousePointer,
   PenTool,
@@ -83,6 +84,7 @@ const LOCAL_STORAGE_KEY = "devhub_tool_whiteboard_data";
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
 export default function WhiteboardPage() {
+  usePageTitle("Whiteboard");
   const [activeTool, setActiveTool] = useState<ToolMode>("select");
   const [currentColor, setCurrentColor] = useState<string>("#1c1b18");
   const [currentFill, setCurrentFill] = useState<string | null>(null);

@@ -6,7 +6,7 @@ import { ROUTES } from "@/constants/routes.constants";
 // Routes that are accessible without authentication
 const PUBLIC_ROUTES = [ROUTES.LOGIN, ROUTES.REGISTER];
 
-// API routes that bypass middleware (handled by individual route handlers)
+// API routes that bypass proxy (handled by individual route handlers)
 const PUBLIC_API_ROUTES = ["/api/auth/login", "/api/auth/register", "/api/auth/refresh"];
 
 export default function proxy(request: NextRequest) {
@@ -57,9 +57,18 @@ export default function proxy(request: NextRequest) {
         name: payload.name,
       });
 
-      const response = NextResponse.next();
+      // Pass updated cookie header to downstream API handlers
+      const requestHeaders = new Headers(request.headers);
+      const updatedCookieHeader = `devhub_access=${newAccessToken}; devhub_refresh=${refreshToken}`;
+      requestHeaders.set("cookie", updatedCookieHeader);
 
-      // Set the refreshed access token cookie
+      const response = NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        },
+      });
+
+      // Set the refreshed access token cookie on response for browser
       response.cookies.set(ACCESS_TOKEN_COOKIE, newAccessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -70,12 +79,11 @@ export default function proxy(request: NextRequest) {
 
       return response;
     } catch {
-      // Refresh token also invalid — redirect to login
+      // Refresh token also invalid — handle unauthenticated below
     }
   }
 
-  // ─── No valid tokens — redirect to login ─────────────────────────────────
-  // For API routes, return 401 instead of redirecting
+  // ─── No valid tokens — handle unauthenticated state ────────────────────────
   if (pathname.startsWith("/api/")) {
     return NextResponse.json(
       { success: false, error: { code: "UNAUTHORIZED", message: "Authentication required." } },
@@ -91,10 +99,7 @@ export default function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization)
-     * - favicon.ico
+     * Match all request paths except static assets
      */
     "/((?!_next/static|_next/image|favicon.ico).*)",
   ],

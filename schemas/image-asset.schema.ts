@@ -6,7 +6,7 @@ export const presignImageAssetSchema = z.object({
 });
 
 export const confirmImageAssetSchema = z.object({
-  r2Key: z.string().min(1, "R2 key is required"),
+  r2Key: z.string().optional().default(""),
   name: z
     .string()
     .min(1, "Image name is required")

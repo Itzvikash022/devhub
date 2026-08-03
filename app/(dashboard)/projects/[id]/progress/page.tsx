@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, Fragment } from "react";
+import { useState, useMemo, Fragment, useEffect } from "react";
 import { useParams } from "next/navigation";
 import {
   useTasksList,
@@ -60,6 +60,15 @@ export default function ProgressTab() {
   // Expandable description & comment state
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
 
+  // Optimistic statuses for task checkbox ticks
+  const [optimisticStatuses, setOptimisticStatuses] = useState<Record<string, TaskData["status"]>>({});
+
+  const getTaskStatus = (task: TaskData): TaskData["status"] => {
+    return optimisticStatuses[task._id] !== undefined ? optimisticStatuses[task._id] : task.status;
+  };
+
+
+
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -75,6 +84,22 @@ export default function ProgressTab() {
   const selectedTask = useMemo(() => {
     return tasks.find((t) => t._id === selectedTaskId);
   }, [tasks, selectedTaskId]);
+
+  // Synchronize optimistic statuses with query data to eliminate checkbox flickers
+  useEffect(() => {
+    setOptimisticStatuses((prev) => {
+      let changed = false;
+      const copy = { ...prev };
+      for (const taskId in copy) {
+        const task = tasks.find((t) => t._id === taskId);
+        if (task && task.status === copy[taskId]) {
+          delete copy[taskId];
+          changed = true;
+        }
+      }
+      return changed ? copy : prev;
+    });
+  }, [tasks]);
 
   if (isLoading) {
     return (
@@ -126,11 +151,31 @@ export default function ProgressTab() {
   };
 
   const handleToggleDone = (task: TaskData) => {
-    const nextStatus = task.status === "done" ? "todo" : "done";
-    updateTask({
-      id: task._id,
-      data: { status: nextStatus },
-    });
+    const currentStatus = getTaskStatus(task);
+    const nextStatus = currentStatus === "done" ? "todo" : "done";
+
+    // Set optimistic status instantly
+    setOptimisticStatuses((prev) => ({
+      ...prev,
+      [task._id]: nextStatus,
+    }));
+
+    updateTask(
+      {
+        id: task._id,
+        data: { status: nextStatus },
+      },
+      {
+        onError: () => {
+          toast.error("Failed to update task status.");
+          // Revert optimistic status on failure
+          setOptimisticStatuses((prev) => ({
+            ...prev,
+            [task._id]: currentStatus,
+          }));
+        },
+      }
+    );
   };
 
   const toggleExpand = (taskId: string) => {
@@ -160,7 +205,8 @@ export default function ProgressTab() {
         task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         task.description.toLowerCase().includes(searchQuery.toLowerCase());
 
-      const matchesStatus = statusFilter === "all" ? true : task.status === statusFilter;
+      const taskStatus = getTaskStatus(task);
+      const matchesStatus = statusFilter === "all" ? true : taskStatus === statusFilter;
       const matchesPriority = priorityFilter === "all" ? true : task.priority === priorityFilter;
 
       return matchesSearch && matchesStatus && matchesPriority;
@@ -408,11 +454,12 @@ export default function ProgressTab() {
                   </TableRow>
                 ) : (
                   filteredAndSortedTasks.map((task) => {
+                    const displayStatus = getTaskStatus(task);
                     const isExpanded = !!expandedTasks[task._id];
                     const isOverdue =
                       task.dueDate &&
                       new Date(task.dueDate).getTime() < now.getTime() &&
-                      task.status !== "done";
+                      displayStatus !== "done";
 
                     return (
                       <Fragment key={task._id}>
@@ -426,13 +473,13 @@ export default function ProgressTab() {
                                 handleToggleDone(task);
                               }}
                               className={`mt-0.5 w-4 h-4 rounded border shrink-0 flex items-center justify-center transition-colors ${
-                                task.status === "done"
+                                displayStatus === "done"
                                   ? "bg-[#4F46C7] border-[#4F46C7]"
                                   : "border-[#DAD8CE] hover:border-[#4F46C7] bg-[#EEF0EA]"
                               }`}
-                              aria-label={`Mark task as ${task.status === "done" ? "todo" : "done"}`}
+                              aria-label={`Mark task as ${displayStatus === "done" ? "todo" : "done"}`}
                             >
-                              {task.status === "done" && (
+                              {displayStatus === "done" && (
                                 <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10">
                                   <path
                                     d="M1.5 5l2.5 2.5 4.5-5"
@@ -451,7 +498,7 @@ export default function ProgressTab() {
                             <div className="flex items-start gap-2 cursor-pointer select-none group/title" onClick={() => toggleExpand(task._id)}>
                               <span
                                 className={`font-sans text-sm font-medium transition-colors break-words whitespace-normal flex-1 ${
-                                  task.status === "done"
+                                  displayStatus === "done"
                                     ? "text-muted-foreground line-through"
                                     : "text-foreground group-hover/title:text-[#4F46C7]"
                                 }`}
@@ -471,7 +518,7 @@ export default function ProgressTab() {
 
                           {/* Status badge */}
                           <TableCell className="py-4 align-top">
-                            <TaskStatusBadge status={task.status} />
+                            <TaskStatusBadge status={displayStatus} />
                           </TableCell>
 
                           {/* Priority badge */}

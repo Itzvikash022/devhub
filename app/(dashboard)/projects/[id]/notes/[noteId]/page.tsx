@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useNoteDetails, useUpdateNote, useDeleteNote } from "@/hooks/useNotes";
-import { Loader2, Trash2, Edit3, Type, FileCode } from "lucide-react";
+import { Loader2, Trash2, Edit3, Type, FileCode, Copy, Check } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -24,6 +24,7 @@ export default function ActiveNotePage() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Sync state with backend details when loaded
   useEffect(() => {
@@ -80,6 +81,14 @@ export default function ActiveNotePage() {
         router.push(`/projects/${projectId}/notes`);
       },
     });
+  };
+
+  const handleCopyPage = () => {
+    const fullText = `# ${title}\n\n${content}`;
+    navigator.clipboard.writeText(fullText);
+    setCopied(true);
+    toast.success("Note page copied to clipboard.");
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -176,6 +185,23 @@ export default function ActiveNotePage() {
 
           {mode === "preview" ? (
             <div className="flex items-center gap-1.5">
+              <button
+                onClick={handleCopyPage}
+                className="px-3 py-1 rounded-md border border-[#DAD8CE] font-inter text-[12px] text-[#6B6E64] hover:text-[#20221F] hover:border-[#4F46C7] transition-colors flex items-center gap-1"
+                title="Copy entire page content"
+              >
+                {copied ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-[#3F7A5C]" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    Copy
+                  </>
+                )}
+              </button>
               <button
                 onClick={() => setMode("edit")}
                 className="px-3 py-1 rounded-md border border-[#DAD8CE] font-inter text-[12px] text-[#6B6E64] hover:text-[#20221F] hover:border-[#4F46C7] transition-colors flex items-center gap-1"

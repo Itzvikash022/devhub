@@ -21,9 +21,11 @@ import {
   Loader2,
   SlidersHorizontal,
   KeyRound,
+  ArrowUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ROUTES } from "@/constants/routes.constants";
+import { PasswordImportExportDialog } from "@/components/dialogs/PasswordImportExportDialog";
 
 interface PasswordVaultViewProps {
   projectId?: string;
@@ -69,6 +71,7 @@ export function PasswordVaultView({ projectId }: PasswordVaultViewProps) {
   const [selectedItem, setSelectedItem] = useState<PasswordData | undefined>(undefined);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [importExportOpen, setImportExportOpen] = useState(false);
 
   // Fetch passwords and projects list
   const { data: passwords = [], isLoading, error } = usePasswordsList(projectId);
@@ -231,12 +234,21 @@ export function PasswordVaultView({ projectId }: PasswordVaultViewProps) {
           </span>
 
           {/* Add Password Button at far right corner */}
-          <button
-            onClick={handleOpenCreate}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#4F46C7] text-white font-inter text-[13px] hover:bg-[#4338a8] transition-colors ml-auto"
-          >
-            <Plus className="w-3.5 h-3.5" /> Add password
-          </button>
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              onClick={() => setImportExportOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#DAD8CE] bg-white text-[#20221F] font-inter text-[13px] hover:bg-[#EEF0EA] transition-colors"
+              title="Import / Export"
+            >
+              <ArrowUpDown className="w-3.5 h-3.5 text-[#6B6E64]" /> Import/Export
+            </button>
+            <button
+              onClick={handleOpenCreate}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#4F46C7] text-white font-inter text-[13px] hover:bg-[#4338a8] transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" /> Add password
+            </button>
+          </div>
         </div>
 
         {/* Password Table or Empty State */}
@@ -410,6 +422,13 @@ export function PasswordVaultView({ projectId }: PasswordVaultViewProps) {
           onOpenChange={setDialogOpen}
           defaultProjectId={projectId}
           item={selectedItem}
+        />
+
+        <PasswordImportExportDialog
+          open={importExportOpen}
+          onOpenChange={setImportExportOpen}
+          projectId={projectId}
+          displayedLabels={Array.from(new Set(passwords.map((pw) => pw.label))).sort()}
         />
 
         <ConfirmDialog

@@ -1,13 +1,17 @@
-import { redirect } from "next/navigation";
-import { ROUTES } from "@/constants/routes.constants";
+"use client";
 
-interface ProjectWorkspacePageProps {
-  params: Promise<{ id: string }>;
-}
+import { useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 
-export default async function ProjectWorkspacePage({ params }: ProjectWorkspacePageProps) {
-  const { id } = await params;
+export default function ProjectWorkspacePage() {
+  const { id } = useParams() as { id: string };
+  const router = useRouter();
 
-  // Default project landing page is set to details tab
-  redirect(ROUTES.PROJECT_DETAILS(id));
+  useEffect(() => {
+    // Read the last visited tab for this project from localStorage
+    const lastTab = localStorage.getItem(`project-tab-${id}`) || "details";
+    router.replace(`/projects/${id}/${lastTab}`);
+  }, [id, router]);
+
+  return null;
 }

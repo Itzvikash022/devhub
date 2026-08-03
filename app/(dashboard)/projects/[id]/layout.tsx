@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { ChevronLeft, Edit2, Archive, Trash2, Loader2, ArchiveRestore } from "lucide-react";
@@ -23,6 +23,27 @@ export default function ProjectWorkspaceLayout({ children }: ProjectWorkspaceLay
 
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  // Persist the last accessed tab to localStorage
+  useEffect(() => {
+    const parts = pathname.split("/");
+    if (parts.length >= 4 && parts[1] === "projects" && parts[2] === id) {
+      const activeTab = parts[3];
+      const validTabs = [
+        "details",
+        "progress",
+        "pipeline",
+        "notes",
+        "documents",
+        "calendar",
+        "images",
+        "passwords",
+      ];
+      if (validTabs.includes(activeTab)) {
+        localStorage.setItem(`project-tab-${id}`, activeTab);
+      }
+    }
+  }, [pathname, id]);
 
   const { data: project, isLoading, error } = useProjectDetails(id);
   usePageTitle(project?.name || "");

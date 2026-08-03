@@ -35,8 +35,16 @@ import {
   AlertCircle,
   Send,
   Loader2,
+  Download,
 } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 export default function ProgressTab() {
   const { id: projectId } = useParams() as { id: string };
@@ -45,9 +53,9 @@ export default function ProgressTab() {
 
   // Local state
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("todo");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("createdAt-desc");
+  const [sortBy, setSortBy] = useState<string>("dueDate-asc");
 
   // Expandable description & comment state
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
@@ -177,6 +185,79 @@ export default function ProgressTab() {
       }
     });
 
+  const handleExportExcel = () => {
+    // Generate CSV content of filtered and sorted tasks
+    const csvRows = [
+      ["Title", "Description", "Status", "Priority", "Due Date", "Comments Count", "Created At"],
+      ...filteredAndSortedTasks.map((task) => {
+        const titleText = task.title || "Untitled";
+        const descText = (task.description || "").replace(/"/g, '""');
+        const statusText = task.status.toUpperCase();
+        const priorityText = task.priority.toUpperCase();
+        const dueDateText = task.dueDate ? format(new Date(task.dueDate), "yyyy-MM-dd") : "N/A";
+        const commentsCount = task.comments ? task.comments.length : 0;
+        const createdAtText = format(new Date(task.createdAt), "yyyy-MM-dd HH:mm:ss");
+
+        return [titleText, descText, statusText, priorityText, dueDateText, commentsCount, createdAtText];
+      }),
+    ];
+
+    const csvContent = csvRows
+      .map((row) => row.map((val) => `"${val}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `tasks-export-${projectId}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("Tasks exported as Excel (.csv) successfully.");
+  };
+
+  const handleExportMarkdown = () => {
+    // Generate Markdown document of filtered and sorted tasks
+    const mdContent = `# Tasks Export\n\n` +
+      filteredAndSortedTasks
+        .map((task, idx) => {
+          const statusBox = task.status === "done" ? "[x]" : "[ ]";
+          const statusText = task.status.toUpperCase();
+          const priorityText = task.priority.toUpperCase();
+          const dueDateText = task.dueDate ? format(new Date(task.dueDate), "yyyy-MM-dd") : "N/A";
+          let taskMd = `## ${idx + 1}. ${statusBox} ${task.title}\n`;
+          taskMd += `- **Status:** ${statusText}\n`;
+          taskMd += `- **Priority:** ${priorityText}\n`;
+          taskMd += `- **Due Date:** ${dueDateText}\n\n`;
+          if (task.description) {
+            taskMd += `### Description\n${task.description}\n\n`;
+          }
+          if (task.comments && task.comments.length > 0) {
+            taskMd += `### Comments\n`;
+            task.comments.forEach((c) => {
+              const cDate = format(new Date(c.createdAt), "yyyy-MM-dd HH:mm");
+              taskMd += `- *${c.userName}* (${cDate}): ${c.text}\n`;
+            });
+            taskMd += `\n`;
+          }
+          return taskMd + `---\n`;
+        })
+        .join("\n");
+
+    const blob = new Blob([mdContent], { type: "text/markdown;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `tasks-export-${projectId}.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("Tasks exported as Markdown (.md) successfully.");
+  };
+
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-6">
       {/* Header controls */}
@@ -187,10 +268,33 @@ export default function ProgressTab() {
             Trace tasks, priority milestones, and due deadlines.
           </p>
         </div>
-        <Button size="sm" onClick={handleOpenCreate} className="shrink-0 gap-1.5">
-          <Plus className="h-4 w-4" />
-          New Task
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger className="h-9 px-3 border border-[#DAD8CE] font-inter text-xs text-[#6B6E64] hover:text-[#20221F] hover:border-[#4F46C7] transition-colors flex items-center gap-1 bg-[#EEF0EA] rounded-md outline-none cursor-pointer">
+              <Download className="w-3.5 h-3.5" />
+              Export
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="min-w-[120px] bg-white border border-[#DAD8CE] rounded-md shadow-md p-1 z-50">
+              <DropdownMenuItem
+                className="px-2 py-1.5 text-xs text-[#20221F] hover:bg-[#F8F9F5] rounded cursor-pointer transition-colors"
+                onClick={handleExportExcel}
+              >
+                Export as Excel (.csv)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="px-2 py-1.5 text-xs text-[#20221F] hover:bg-[#F8F9F5] rounded cursor-pointer transition-colors"
+                onClick={handleExportMarkdown}
+              >
+                Export as Markdown (.md)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button size="sm" onClick={handleOpenCreate} className="shrink-0 gap-1.5 h-9">
+            <Plus className="h-4 w-4" />
+            New Task
+          </Button>
+        </div>
       </div>
 
       {tasks.length === 0 ? (

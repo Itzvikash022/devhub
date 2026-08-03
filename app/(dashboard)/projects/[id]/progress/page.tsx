@@ -343,10 +343,10 @@ export default function ProgressTab() {
                           </TableCell>
 
                           {/* Title and collapsible details trigger */}
-                          <TableCell className="py-4 align-top whitespace-normal break-all [overflow-wrap:anywhere] overflow-hidden">
+                          <TableCell className="py-4 align-top whitespace-normal break-words overflow-hidden">
                             <div className="flex items-start gap-2 cursor-pointer select-none group/title" onClick={() => toggleExpand(task._id)}>
                               <span
-                                className={`font-sans text-sm font-medium transition-colors break-all [overflow-wrap:anywhere] whitespace-normal flex-1 ${
+                                className={`font-sans text-sm font-medium transition-colors break-words whitespace-normal flex-1 ${
                                   task.status === "done"
                                     ? "text-muted-foreground line-through"
                                     : "text-foreground group-hover/title:text-[#4F46C7]"

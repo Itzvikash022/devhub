@@ -76,6 +76,7 @@ export function useCreateProject() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
       toast.success(`Project "${data.name}" created successfully!`);
     },
     onError: (error) => {
@@ -99,6 +100,7 @@ export function useUpdateProject(id: string) {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       queryClient.invalidateQueries({ queryKey: ["project", id] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
       toast.success(`Project "${data.name}" updated successfully.`);
     },
     onError: (error) => {
@@ -121,6 +123,7 @@ export function useDeleteProject(id: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       queryClient.removeQueries({ queryKey: ["project", id] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
       toast.success("Project deleted successfully.");
       router.push(ROUTES.PROJECTS);
     },

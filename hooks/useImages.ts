@@ -84,7 +84,7 @@ export function useConfirmImage(projectId: string) {
       return handleResponse<ImageAssetData>(res);
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["images", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["images"] });
       toast.success(`Image "${data.name}" uploaded successfully.`);
     },
     onError: (error) => {
@@ -117,7 +117,7 @@ export function useDeleteImage(projectId: string) {
       return handleResponse<void>(res);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["images", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["images"] });
       toast.success("Image deleted.");
     },
     onError: (error) => {

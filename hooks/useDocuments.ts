@@ -96,6 +96,7 @@ export function useConfirmDocument() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
       toast.success(`Document "${data.title}" uploaded.`);
     },
     onError: (error) => {
@@ -118,6 +119,7 @@ export function useUpdateDocument() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
       toast.success(`Document "${data.title}" updated.`);
     },
     onError: (error) => {
@@ -138,6 +140,7 @@ export function useDeleteDocument() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
       toast.success("Document deleted.");
     },
     onError: (error) => {

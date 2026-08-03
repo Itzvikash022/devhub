@@ -73,6 +73,7 @@ export function useCreateTask(projectId: string) {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
       toast.success(`Task "${data.title}" created.`);
     },
     onError: (error) => {
@@ -96,6 +97,7 @@ export function useUpdateTask(projectId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
     },
     onError: (error) => {
       toast.error(error.message || "Failed to update task.");
@@ -116,6 +118,7 @@ export function useDeleteTask(projectId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
       toast.success("Task deleted.");
     },
     onError: (error) => {
@@ -138,6 +141,7 @@ export function useAddComment(projectId: string, taskId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
       toast.success("Comment added.");
     },
     onError: (error) => {

@@ -69,6 +69,7 @@ export function useCreateCalendarEvent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
       toast.success("Event scheduled successfully.");
     },
     onError: (error) => {
@@ -91,6 +92,7 @@ export function useUpdateCalendarEvent() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
       toast.success(`Event "${data.title}" updated.`);
     },
     onError: (error) => {
@@ -111,6 +113,7 @@ export function useDeleteCalendarEvent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
       toast.success("Event deleted.");
     },
     onError: (error) => {

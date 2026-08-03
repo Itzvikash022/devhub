@@ -74,6 +74,7 @@ export function useCreateNote(projectId: string) {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["notes", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
       toast.success("New page created.");
       router.push(`/projects/${projectId}/notes/${data._id}`);
     },
@@ -99,6 +100,7 @@ export function useUpdateNote(id: string, projectId: string) {
       // Invalidate queries to refresh sidebar list & editor state
       queryClient.invalidateQueries({ queryKey: ["notes", projectId] });
       queryClient.invalidateQueries({ queryKey: ["note", id] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
     },
     onError: (error) => {
       toast.error(error.message || "Failed to save note.");
@@ -120,6 +122,7 @@ export function useDeleteNote(id: string, projectId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notes", projectId] });
       queryClient.removeQueries({ queryKey: ["note", id] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
       toast.success("Page deleted successfully.");
       router.push(`/projects/${projectId}/notes`);
     },

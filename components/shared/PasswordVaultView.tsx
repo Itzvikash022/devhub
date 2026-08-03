@@ -65,6 +65,7 @@ export function PasswordVaultView({ projectId }: PasswordVaultViewProps) {
   const [decryptedSecrets, setDecryptedSecrets] = useState<Record<string, string>>({});
   const [revealedIds, setRevealedIds] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copiedType, setCopiedType] = useState<"username" | "password" | null>(null);
 
   // Dialog control states
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -105,11 +106,52 @@ export function PasswordVaultView({ projectId }: PasswordVaultViewProps) {
     }
   };
 
-  const handleCopy = (id: string, text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    toast.success("Password copied to clipboard.");
-    setTimeout(() => setCopiedId(null), 2000);
+  const handleCopyUsername = (pw: PasswordData) => {
+    if (!pw.username) return;
+    navigator.clipboard.writeText(pw.username);
+    setCopiedId(pw._id);
+    setCopiedType("username");
+    toast.success("Username copied to clipboard.");
+    setTimeout(() => {
+      setCopiedId(null);
+      setCopiedType(null);
+    }, 2000);
+  };
+
+  const handleCopyPassword = async (pw: PasswordData) => {
+    const id = pw._id;
+    let secret = decryptedSecrets[id];
+
+    if (!secret) {
+      setRevealPendingId(id);
+      try {
+        const res = await fetch(`/api/passwords/${id}/reveal`, { method: "POST" });
+        const json = await res.json();
+        if (json.success) {
+          secret = json.data.secret;
+          setDecryptedSecrets((prev) => ({ ...prev, [id]: secret }));
+        } else {
+          toast.error("Failed to decrypt secret.");
+          return;
+        }
+      } catch {
+        toast.error("Decryption request failed.");
+        return;
+      } finally {
+        setRevealPendingId(null);
+      }
+    }
+
+    if (secret) {
+      navigator.clipboard.writeText(secret);
+      setCopiedId(id);
+      setCopiedType("password");
+      toast.success("Password copied to clipboard.");
+      setTimeout(() => {
+        setCopiedId(null);
+        setCopiedType(null);
+      }, 2000);
+    }
   };
 
   const handleOpenCreate = () => {
@@ -323,25 +365,48 @@ export function PasswordVaultView({ projectId }: PasswordVaultViewProps) {
                       </td>
 
                       {/* Username */}
-                      <td className="px-4 py-3 font-mono text-[12px] text-[#6B6E64] break-all max-w-[150px]">
-                        {pw.username || "—"}
+                      <td
+                        onClick={() => handleCopyUsername(pw)}
+                        className="px-4 py-3 font-mono text-[12px] text-[#6B6E64] break-all max-w-[150px] cursor-pointer hover:text-[#4F46C7] transition-colors relative"
+                        title={pw.username ? "Click to copy username" : undefined}
+                      >
+                        <span>{pw.username || "—"}</span>
+                        {copiedId === pw._id && copiedType === "username" && (
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-0.5 bg-[#20221F] text-white text-[10px] rounded shadow-md pointer-events-none whitespace-nowrap z-50 font-inter">
+                            Copied!
+                          </div>
+                        )}
                       </td>
 
                       {/* Secret */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-[12px] text-[#20221F] max-w-[160px] truncate break-all">
+                      <td className="px-4 py-3 max-w-[200px]">
+                        <div className="flex items-center gap-2 relative">
+                          <div
+                            onClick={() => handleCopyPassword(pw)}
+                            className="font-mono text-[12px] text-[#20221F] max-w-[150px] truncate break-all cursor-pointer hover:text-[#4F46C7] transition-colors flex-1 py-1"
+                            title="Click to copy password"
+                          >
                             {revealPendingId === pw._id ? (
-                              <Loader2 className="w-3 h-3 animate-spin text-[#4F46C7]" />
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#4F46C7]" />
                             ) : isRevealed ? (
                               secret
                             ) : (
                               "••••••••••"
                             )}
-                          </span>
+                          </div>
+
+                          {copiedId === pw._id && copiedType === "password" && (
+                            <div className="absolute bottom-full left-1/4 transform -translate-x-1/2 mb-1 px-2 py-0.5 bg-[#20221F] text-white text-[10px] rounded shadow-md pointer-events-none whitespace-nowrap z-50 font-inter">
+                              Copied!
+                            </div>
+                          )}
+
                           <button
-                            onClick={() => handleReveal(pw)}
-                            className="text-[#6B6E64] hover:text-[#4F46C7] transition-colors shrink-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleReveal(pw);
+                            }}
+                            className="text-[#6B6E64] hover:text-[#4F46C7] transition-colors shrink-0 p-1"
                             title={isRevealed ? "Hide" : "Reveal"}
                           >
                             {isRevealed ? (
@@ -350,19 +415,6 @@ export function PasswordVaultView({ projectId }: PasswordVaultViewProps) {
                               <Eye className="w-3.5 h-3.5" />
                             )}
                           </button>
-                          {isRevealed && secret && (
-                            <button
-                              onClick={() => handleCopy(pw._id, secret)}
-                              className="text-[#6B6E64] hover:text-[#3F7A5C] transition-colors shrink-0"
-                              title="Copy"
-                            >
-                              {copiedId === pw._id ? (
-                                <Check className="w-3.5 h-3.5 text-[#3F7A5C]" />
-                              ) : (
-                                <Copy className="w-3.5 h-3.5" />
-                              )}
-                            </button>
-                          )}
                         </div>
                       </td>
 

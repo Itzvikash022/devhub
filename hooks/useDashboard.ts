@@ -30,7 +30,6 @@ export interface DashboardTask {
   status: "todo" | "in-progress" | "blocked" | "done";
   priority: "low" | "medium" | "high";
   dueDate: string | null;
-  assignee: string | null;
   createdAt: string;
   updatedAt: string;
 }

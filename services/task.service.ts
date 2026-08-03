@@ -37,7 +37,6 @@ export class TaskService {
       status: data.status || "todo",
       priority: data.priority || "medium",
       dueDate: data.dueDate || null,
-      assignee: data.assignee || null,
     });
 
     // Calendar sync: Add deadline if task has due date and is not completed

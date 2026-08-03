@@ -12,7 +12,6 @@ export interface ITask {
   status: "todo" | "in-progress" | "blocked" | "done";
   priority: "low" | "medium" | "high";
   dueDate: Date | null;
-  assignee: string | null;
   comments: IComment[];
   createdAt: Date;
   updatedAt: Date;
@@ -75,12 +74,6 @@ const TaskSchema: Schema = new Schema<ITaskDocument>(
       type: Date,
       default: null,
       index: true,
-    },
-    assignee: {
-      type: String,
-      trim: true,
-      default: null,
-      maxlength: [100, "Assignee cannot exceed 100 characters"],
     },
     comments: {
       type: [CommentSchema],

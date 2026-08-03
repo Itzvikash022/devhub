@@ -21,7 +21,6 @@ export interface TaskData {
   status: "todo" | "in-progress" | "blocked" | "done";
   priority: "low" | "medium" | "high";
   dueDate: string | null;
-  assignee: string | null;
   comments: CommentData[];
   createdAt: string;
   updatedAt: string;

@@ -275,7 +275,7 @@ export default function ProgressTab() {
                   <TableHead className="w-10 text-center font-mono text-[10px] font-semibold tracking-wider">
                     Done
                   </TableHead>
-                  <TableHead className="w-[36%] font-mono text-[10px] font-semibold tracking-wider">
+                  <TableHead className="w-[45%] font-mono text-[10px] font-semibold tracking-wider">
                     Task
                   </TableHead>
                   <TableHead className="w-28 font-mono text-[10px] font-semibold tracking-wider">
@@ -287,9 +287,6 @@ export default function ProgressTab() {
                   <TableHead className="w-32 font-mono text-[10px] font-semibold tracking-wider">
                     Due Date
                   </TableHead>
-                  <TableHead className="w-32 font-mono text-[10px] font-semibold tracking-wider">
-                    Assignee
-                  </TableHead>
                   <TableHead className="w-20 text-right font-mono text-[10px] font-semibold tracking-wider">
                     Actions
                   </TableHead>
@@ -299,7 +296,7 @@ export default function ProgressTab() {
                 {filteredAndSortedTasks.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={6}
                       className="text-muted-foreground py-8 text-center text-xs"
                     >
                       No tasks matching criteria.
@@ -395,19 +392,6 @@ export default function ProgressTab() {
                               </span>
                             ) : (
                               <span className="text-muted-foreground/60 font-mono text-xs">—</span>
-                            )}
-                          </TableCell>
-
-                          {/* Assignee */}
-                          <TableCell className="py-4 align-top">
-                            {task.assignee ? (
-                              <span className="text-foreground font-sans text-xs font-medium truncate max-w-[120px] block">
-                                {task.assignee}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground/60 font-sans text-xs italic">
-                                Unassigned
-                              </span>
                             )}
                           </TableCell>
 

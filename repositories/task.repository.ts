@@ -38,7 +38,6 @@ export class TaskRepository {
     status: string;
     priority: string;
     dueDate: Date | null;
-    assignee: string | null;
   }): Promise<ITaskDocument> {
     await connectToDatabase();
     const task = new Task({
@@ -59,7 +58,6 @@ export class TaskRepository {
       status: string;
       priority: string;
       dueDate: Date | null;
-      assignee: string | null;
     }>
   ): Promise<ITaskDocument | null> {
     const parseResult = objectIdSchema.safeParse(id);

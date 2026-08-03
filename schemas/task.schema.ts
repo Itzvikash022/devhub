@@ -13,12 +13,6 @@ export const createTaskSchema = z.object({
     .preprocess((val) => (val ? new Date(val as string) : null), z.date().nullable())
     .optional()
     .default(null),
-  assignee: z
-    .string()
-    .max(100, "Assignee cannot exceed 100 characters")
-    .nullable()
-    .optional()
-    .default(null),
 });
 
 export const updateTaskSchema = createTaskSchema.partial();

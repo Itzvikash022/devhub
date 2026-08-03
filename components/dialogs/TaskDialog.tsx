@@ -55,7 +55,6 @@ export function TaskDialog({ open, onOpenChange, projectId, task }: TaskDialogPr
       status: "todo",
       priority: "medium",
       dueDate: null,
-      assignee: null,
     },
   });
 
@@ -69,7 +68,6 @@ export function TaskDialog({ open, onOpenChange, projectId, task }: TaskDialogPr
           status: task.status,
           priority: task.priority,
           dueDate: task.dueDate ? new Date(task.dueDate) : null,
-          assignee: task.assignee || null,
         });
       } else {
         reset({
@@ -78,7 +76,6 @@ export function TaskDialog({ open, onOpenChange, projectId, task }: TaskDialogPr
           status: "todo",
           priority: "medium",
           dueDate: null,
-          assignee: null,
         });
       }
     }
@@ -238,19 +235,6 @@ export function TaskDialog({ open, onOpenChange, projectId, task }: TaskDialogPr
                     </Field>
                   </div>
 
-                  <div>
-                    <Field data-invalid={!!errors.assignee}>
-                      <FieldLabel htmlFor="assignee">Assignee</FieldLabel>
-                      <Input
-                        id="assignee"
-                        type="text"
-                        placeholder="e.g. Vikas"
-                        disabled={isPending}
-                        {...register("assignee")}
-                      />
-                      {errors.assignee?.message && <FieldError>{errors.assignee.message}</FieldError>}
-                    </Field>
-                  </div>
                 </div>
               </div>
 
@@ -430,19 +414,6 @@ export function TaskDialog({ open, onOpenChange, projectId, task }: TaskDialogPr
                 </Field>
               </div>
 
-              <div>
-                <Field data-invalid={!!errors.assignee}>
-                  <FieldLabel htmlFor="assignee">Assignee</FieldLabel>
-                  <Input
-                    id="assignee"
-                    type="text"
-                    placeholder="e.g. Vikas"
-                    disabled={isPending}
-                    {...register("assignee")}
-                  />
-                  {errors.assignee?.message && <FieldError>{errors.assignee.message}</FieldError>}
-                </Field>
-              </div>
             </div>
 
             <DialogFooter className="pt-2">

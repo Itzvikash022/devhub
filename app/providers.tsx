@@ -14,8 +14,10 @@ export function Providers({ children }: ProvidersProps) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 5 * 60 * 1000, // 5 minutes stale time
+            staleTime: 10 * 60 * 1000, // 10 minutes stale time
+            gcTime: 15 * 60 * 1000, // 15 minutes cache/gc retention time
             refetchOnWindowFocus: false, // Avoid excessive network queries on focus
+            refetchOnReconnect: false, // Avoid network queries on reconnect
             retry: 1, // Max retry on failure
           },
         },

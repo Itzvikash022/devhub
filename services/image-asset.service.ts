@@ -102,6 +102,11 @@ export class ImageAssetService {
       description: data.description || "",
       expiryDate: data.expiryDate || null,
       isEncrypted,
+      width: data.width ?? null,
+      height: data.height ?? null,
+      thumbnail: isEncrypted ? null : (data.thumbnail ?? null),
+      originalKey: data.originalKey || data.r2Key || null,
+      thumbnailKey: data.thumbnailKey ?? null,
     });
 
     if (projectId) {
@@ -153,12 +158,15 @@ export class ImageAssetService {
   /**
    * Generates a short-lived download/view URL for non-encrypted images.
    */
-  static async getDownloadUrl(userId: string, id: string): Promise<string> {
+  static async getDownloadUrl(userId: string, id: string, download: boolean = false): Promise<string> {
     const asset = await this.verifyAssetOwnership(userId, id);
     if (asset.isEncrypted) {
       throw new Error("CANNOT_RETRIEVE_ENCRYPTED_DIRECTLY");
     }
-    return generatePresignedDownloadUrl(asset.r2Key);
+    const filename = download
+      ? asset.fileName || `${asset.name}.${asset.fileType.split("/")[1] || "png"}`
+      : undefined;
+    return generatePresignedDownloadUrl(asset.r2Key, filename);
   }
 
   /**
@@ -263,5 +271,94 @@ export class ImageAssetService {
     }
 
     return created;
+  }
+
+  /**
+   * Confirms/Finalizes a batch of image uploads.
+   */
+  static async confirmUploadBatch(
+    userId: string,
+    projectId: string,
+    items: ConfirmImageAssetInput[]
+  ): Promise<IImageAssetDocument[]> {
+    const results: IImageAssetDocument[] = [];
+    for (const item of items) {
+      const doc = await this.confirmUpload(userId, projectId, item);
+      results.push(doc);
+    }
+    return results;
+  }
+
+  /**
+   * Lists image assets for a project workspace with pagination, filters, and sorting.
+   */
+  static async listByProjectIdPaginated(
+    userId: string,
+    projectId: string,
+    filter: { search?: string; category?: string },
+    options: { page?: number; pageSize?: number; sortBy?: string }
+  ): Promise<{ items: IImageAssetDocument[]; totalCount: number }> {
+    // Verify project ownership
+    await ProjectService.getById(userId, projectId);
+
+    const { items, totalCount } = await ImageAssetRepository.findByFilters(
+      { projectId, search: filter.search, category: filter.category },
+      options
+    );
+
+    const sanitizedItems = items.map((item) => {
+      if (item.isEncrypted) {
+        item.r2Key = "";
+      }
+      return item;
+    });
+
+    return { items: sanitizedItems, totalCount };
+  }
+
+  /**
+   * Lists all image assets across user projects with pagination, filters, and sorting.
+   */
+  static async listAllPaginated(
+    userId: string,
+    filter: { search?: string; category?: string },
+    options: { page?: number; pageSize?: number; sortBy?: string }
+  ): Promise<{ items: IImageAssetDocument[]; totalCount: number }> {
+    const projects = await ProjectService.list(userId);
+    const projectIds = projects.map((p: any) => p._id.toString());
+
+    const { items, totalCount } = await ImageAssetRepository.findByFilters(
+      { projectIds, search: filter.search, category: filter.category },
+      options
+    );
+
+    const sanitizedItems = items.map((item) => {
+      if (item.isEncrypted) {
+        item.r2Key = "";
+      }
+      return item;
+    });
+
+    return { items: sanitizedItems, totalCount };
+  }
+
+  /**
+   * Updates category for multiple image assets.
+   */
+  static async bulkUpdateCategory(
+    userId: string,
+    ids: string[],
+    category: string
+  ): Promise<void> {
+    for (const id of ids) {
+      const asset = await this.verifyAssetOwnership(userId, id);
+      const updated = await ImageAssetRepository.update(id, { category });
+      if (!updated) {
+        throw new Error("UPDATE_FAILED");
+      }
+      if (asset.projectId) {
+        await ProjectService.touch(asset.projectId.toString());
+      }
+    }
   }
 }

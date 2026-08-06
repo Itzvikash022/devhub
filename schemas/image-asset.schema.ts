@@ -32,6 +32,19 @@ export const confirmImageAssetSchema = z.object({
   fileName: z.string().min(1, "File name is required"),
   fileType: z.string().min(1, "File type is required"),
   fileSize: z.number().positive("File size must be positive"),
+  width: z.number().optional().nullable().default(null),
+  height: z.number().optional().nullable().default(null),
+  thumbnail: z.string().optional().nullable().default(null),
+  originalKey: z.string().optional().nullable().default(null),
+  thumbnailKey: z.string().optional().nullable().default(null),
+});
+
+export const presignBatchSchema = z.object({
+  files: z.array(presignImageAssetSchema),
+});
+
+export const confirmBatchSchema = z.object({
+  items: z.array(confirmImageAssetSchema),
 });
 
 export const decryptImageAssetSchema = z.object({
@@ -41,3 +54,5 @@ export const decryptImageAssetSchema = z.object({
 export type PresignImageAssetInput = z.infer<typeof presignImageAssetSchema>;
 export type ConfirmImageAssetInput = z.infer<typeof confirmImageAssetSchema>;
 export type DecryptImageAssetInput = z.infer<typeof decryptImageAssetSchema>;
+export type PresignBatchInput = z.infer<typeof presignBatchSchema>;
+export type ConfirmBatchInput = z.infer<typeof confirmBatchSchema>;

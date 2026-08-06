@@ -11,6 +11,11 @@ export interface IImageAsset {
   description: string;
   expiryDate: Date | null;
   isEncrypted: boolean;
+  width?: number | null;
+  height?: number | null;
+  thumbnail?: string | null;
+  originalKey?: string | null;
+  thumbnailKey?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -76,6 +81,26 @@ const ImageAssetSchema: Schema = new Schema<IImageAssetDocument>(
       default: false,
       required: true,
       index: true,
+    },
+    width: {
+      type: Number,
+      default: null,
+    },
+    height: {
+      type: Number,
+      default: null,
+    },
+    thumbnail: {
+      type: String,
+      default: null,
+    },
+    originalKey: {
+      type: String,
+      default: null,
+    },
+    thumbnailKey: {
+      type: String,
+      default: null,
     },
   },
   {

@@ -17,7 +17,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const { id } = await params;
-    const downloadUrl = await ImageAssetService.getDownloadUrl(session.userId, id);
+    const isDownload = request.nextUrl.searchParams.get("download") === "true";
+    const downloadUrl = await ImageAssetService.getDownloadUrl(session.userId, id, isDownload);
     return successResponse({ downloadUrl });
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : "";

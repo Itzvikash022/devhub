@@ -1,6 +1,5 @@
-import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, DeleteObjectCommand, PutObjectCommand, GetObjectCommand, PutBucketCorsCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { PRESIGNED_URL_EXPIRY_SECONDS } from "@/constants/app.constants";
 import { Readable } from "stream";
 
@@ -23,11 +22,43 @@ const r2Client = new S3Client({
   },
 });
 
+let corsConfigured = false;
+
+/**
+ * Automatically configures standard CORS rules on the R2 bucket to prevent preflight blocks.
+ */
+export async function ensureBucketCors(): Promise<void> {
+  if (corsConfigured) return;
+  try {
+    const command = new PutBucketCorsCommand({
+      Bucket: BUCKET_NAME,
+      CORSConfiguration: {
+        CORSRules: [
+          {
+            AllowedHeaders: ["*"],
+            AllowedMethods: ["GET", "PUT", "POST", "DELETE", "HEAD"],
+            AllowedOrigins: ["*"],
+            ExposeHeaders: ["ETag"],
+            MaxAgeSeconds: 3000,
+          },
+        ],
+      },
+    });
+    await r2Client.send(command);
+    corsConfigured = true;
+    console.log("Cloudflare R2 CORS configured successfully.");
+  } catch (error) {
+    console.error("Failed to automatically configure R2 CORS:", error);
+  }
+}
+
 /**
  * Generates a presigned PUT URL that the client uses to upload directly to R2.
  * This bypasses the Next.js server for large files.
  */
 export async function generatePresignedUploadUrl(key: string, mimeType: string): Promise<string> {
+  await ensureBucketCors();
+
   const command = new PutObjectCommand({
     Bucket: BUCKET_NAME,
     Key: key,
@@ -39,14 +70,11 @@ export async function generatePresignedUploadUrl(key: string, mimeType: string):
   });
 }
 
-/**
- * Generates a short-lived presigned GET URL for private file retrieval.
- * Documents are always retrieved via signed URLs.
- */
-export async function generatePresignedDownloadUrl(key: string): Promise<string> {
+export async function generatePresignedDownloadUrl(key: string, filename?: string): Promise<string> {
   const command = new GetObjectCommand({
     Bucket: BUCKET_NAME,
     Key: key,
+    ResponseContentDisposition: filename ? `attachment; filename="${encodeURIComponent(filename)}"` : undefined,
   });
 
   return getSignedUrl(r2Client, command, {

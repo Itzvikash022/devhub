@@ -53,7 +53,6 @@ export function PasswordImportExportDialog({
   const [activeTab, setActiveTab] = useState<string>("import");
 
   // Import State
-  const [inputText, setInputText] = useState("");
   const [parsedItems, setParsedItems] = useState<ParsedItem[]>([]);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [isImporting, setIsImporting] = useState(false);
@@ -115,9 +114,30 @@ export function PasswordImportExportDialog({
     }
   };
 
+  const handleUpdateItem = (index: number, field: keyof ParsedItem, value: string) => {
+    setParsedItems((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  };
+
+  const handleDeleteItem = (index: number) => {
+    setParsedItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAddRow = () => {
+    setParsedItems((prev) => [
+      ...prev,
+      { label: "", username: "", secret: "", lineNum: prev.length + 1 },
+    ]);
+  };
+
+  const hasInvalidItems = parsedItems.some((item) => !item.username.trim() || !item.secret.trim());
+
   // ─── Parsing Logic ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!inputText.trim()) {
+  const parseCSVText = (text: string) => {
+    if (!text.trim()) {
       setParsedItems([]);
       setParseErrors([]);
       return;
@@ -146,7 +166,7 @@ export function PasswordImportExportDialog({
       return result;
     };
 
-    const lines = inputText.split(/\r?\n/);
+    const lines = text.split(/\r?\n/);
     let globalItemIndex = 1;
 
     for (let i = 0; i < lines.length; i++) {
@@ -180,37 +200,51 @@ export function PasswordImportExportDialog({
         continue;
       }
 
-      // Chunk inline comma separated groups in sizes of 3
-      for (let j = 0; j < tokens.length; j += 3) {
-        const labelToken = tokens[j] || "";
-        const usernameToken = tokens[j + 1] || "";
-        const passwordToken = tokens[j + 2] || "";
-
+      if (tokens.length === 2) {
+        const labelToken = "";
+        const usernameToken = tokens[0];
+        const passwordToken = tokens[1];
         const currentItemIndex = globalItemIndex++;
 
-        // Username and password both fields are required
-        if (!usernameToken || !passwordToken) {
-          let missingFields = [];
-          if (!usernameToken) missingFields.push("username/ID");
-          if (!passwordToken) missingFields.push("password");
-          errors.push(
-            `Line ${i + 1} (Item ${currentItemIndex}): Missing ${missingFields.join(" and ")}.`
-          );
-          continue;
-        }
-
         items.push({
-          label: labelToken.trim(), // Server fallback to "Imported X" if empty
+          label: labelToken.trim(),
           username: usernameToken.trim(),
-          secret: passwordToken.trim(), // space trimming handled here
+          secret: passwordToken.trim(),
           lineNum: i + 1,
         });
+      } else {
+        // Chunk inline comma separated groups in sizes of 3
+        for (let j = 0; j < tokens.length; j += 3) {
+          const labelToken = tokens[j] || "";
+          const usernameToken = tokens[j + 1] || "";
+          const passwordToken = tokens[j + 2] || "";
+
+          const currentItemIndex = globalItemIndex++;
+
+          // Username and password both fields are required
+          if (!usernameToken || !passwordToken) {
+            let missingFields = [];
+            if (!usernameToken) missingFields.push("username/ID");
+            if (!passwordToken) missingFields.push("password");
+            errors.push(
+              `Line ${i + 1} (Item ${currentItemIndex}): Missing ${missingFields.join(" and ")}.`
+            );
+            continue;
+          }
+
+          items.push({
+            label: labelToken.trim(),
+            username: usernameToken.trim(),
+            secret: passwordToken.trim(),
+            lineNum: i + 1,
+          });
+        }
       }
     }
 
     setParsedItems(items);
     setParseErrors(errors);
-  }, [inputText]);
+  };
 
   // Handle local CSV file uploads
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -221,7 +255,7 @@ export function PasswordImportExportDialog({
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      setInputText(text);
+      parseCSVText(text);
     };
     reader.readAsText(file);
   };
@@ -321,7 +355,6 @@ export function PasswordImportExportDialog({
   };
 
   const handleResetAndClose = () => {
-    setInputText("");
     setFileName(null);
     setSelectedScopes(["ALL"]);
     setProfilePassword("");
@@ -387,71 +420,120 @@ export function PasswordImportExportDialog({
               </label>
             </div>
 
-            {/* Text Paste input */}
-            <div className="space-y-1.5">
-              <Label htmlFor="csvPaste" className="font-mono text-[11px] uppercase tracking-widest text-[#6B6E64]">
-                Or Paste Comma Separated Values (CSV text)
-              </Label>
-              <Textarea
-                id="csvPaste"
-                placeholder={`Service Name, ID, Password\nGithub, my_username, my_password\nAWS, my_aws_id, aws_password, Slack, slack_id, slack_pwd`}
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                className="h-28 font-mono text-xs resize-none"
-              />
-            </div>
-
             {/* Parser Results Preview section */}
-            {inputText.trim() && (
-              <div className="border border-[#DAD8CE] rounded-md overflow-hidden bg-white">
-                <div className="bg-[#EEF0EA] border-b border-[#DAD8CE] px-3 py-1.5 flex items-center justify-between">
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-[#6B6E64]">
-                    Parse Preview Log
+            <div className="border border-[#DAD8CE] rounded-md overflow-hidden bg-white flex flex-col mt-2">
+              <div className="bg-[#EEF0EA] border-b border-[#DAD8CE] px-3 py-1.5 flex items-center justify-between">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-[#6B6E64]">
+                  Credentials to Import
+                </span>
+                <div className="flex gap-3">
+                  <span className="flex items-center gap-1 font-inter text-xs text-[#3F7A5C] font-semibold">
+                    <CheckCircle className="w-3.5 h-3.5" /> {parsedItems.length} Ready
                   </span>
-                  <div className="flex gap-3">
-                    <span className="flex items-center gap-1 font-inter text-xs text-[#3F7A5C] font-semibold">
-                      <CheckCircle className="w-3.5 h-3.5" /> {parsedItems.length} Ready
+                  {parseErrors.length > 0 && (
+                    <span className="flex items-center gap-1 font-inter text-xs text-[#B14B4B] font-semibold">
+                      <AlertTriangle className="w-3.5 h-3.5" /> {parseErrors.length} Skipped
                     </span>
-                    {parseErrors.length > 0 && (
-                      <span className="flex items-center gap-1 font-inter text-xs text-[#B14B4B] font-semibold">
-                        <AlertTriangle className="w-3.5 h-3.5" /> {parseErrors.length} Skipped
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="p-3 max-h-40 overflow-y-auto font-mono text-[11px] space-y-2.5 divide-y divide-[#DAD8CE]/50">
-                  {/* Valid item listings */}
-                  {parsedItems.map((item, idx) => (
-                    <div key={idx} className="flex flex-col gap-0.5 pt-2 first:pt-0">
-                      <div className="flex justify-between items-center text-[#20221F]">
-                        <span className="font-semibold">
-                          {item.label || "(Auto-naming on import)"}
-                        </span>
-                      </div>
-                      <div className="text-[#6B6E64] flex gap-3">
-                        <span>Username: {item.username}</span>
-                        <span>Password: ••••••••</span>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Invalid error lines */}
-                  {parseErrors.map((err, idx) => (
-                    <div key={idx} className="text-[#B14B4B] pt-2 flex items-start gap-1">
-                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                      <span>{err}</span>
-                    </div>
-                  ))}
-
-                  {parsedItems.length === 0 && parseErrors.length === 0 && (
-                    <div className="text-center text-[#6B6E64] py-2">
-                      No data parsed yet. Check formatting.
-                    </div>
                   )}
                 </div>
               </div>
-            )}
+
+              <div className="max-h-60 overflow-y-auto">
+                <table className="w-full text-left font-inter text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#DAD8CE] bg-[#F8F9F5] sticky top-0 z-10">
+                      <th className="p-2 font-semibold text-[#6B6E64] w-[30%]">Service Name</th>
+                      <th className="p-2 font-semibold text-[#6B6E64] w-[35%]">Username / ID *</th>
+                      <th className="p-2 font-semibold text-[#6B6E64] w-[30%]">Password *</th>
+                      <th className="p-2 text-center text-[#6B6E64] w-[5%]"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#DAD8CE]/30">
+                    {parsedItems.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="p-8 text-center text-[#6B6E64] bg-[#F8F9F5]/20 font-inter text-xs">
+                          No credentials added yet. Upload a CSV file or click "+ Add Row" to start.
+                        </td>
+                      </tr>
+                    )}
+                    {parsedItems.map((item, idx) => {
+                      const isRowInvalid = !item.username.trim() || !item.secret.trim();
+                      return (
+                        <tr key={idx} className={`hover:bg-[#F8F9F5]/40 transition-colors ${isRowInvalid ? "bg-[#B14B4B]/5" : ""}`}>
+                          <td className="p-1.5">
+                            <input
+                              type="text"
+                              value={item.label}
+                              onChange={(e) => handleUpdateItem(idx, 'label', e.target.value)}
+                              placeholder="e.g. Github (optional)"
+                              className="w-full px-2 py-1 text-xs border border-[#DAD8CE] rounded bg-white focus:outline-none focus:border-[#4F46C7] font-sans text-[#20221F]"
+                            />
+                          </td>
+                          <td className="p-1.5">
+                            <input
+                              type="text"
+                              value={item.username}
+                              onChange={(e) => handleUpdateItem(idx, 'username', e.target.value)}
+                              placeholder="Username (required)"
+                              className={`w-full px-2 py-1 text-xs border rounded bg-white focus:outline-none focus:border-[#4F46C7] font-sans text-[#20221F] ${
+                                !item.username.trim() ? "border-red-400 focus:border-red-500" : "border-[#DAD8CE]"
+                              }`}
+                            />
+                          </td>
+                          <td className="p-1.5">
+                            <input
+                              type="text"
+                              value={item.secret}
+                              onChange={(e) => handleUpdateItem(idx, 'secret', e.target.value)}
+                              placeholder="Password (required)"
+                              className={`w-full px-2 py-1 text-xs border rounded bg-white focus:outline-none focus:border-[#4F46C7] font-sans text-[#20221F] ${
+                                !item.secret.trim() ? "border-red-400 focus:border-red-500" : "border-[#DAD8CE]"
+                              }`}
+                            />
+                          </td>
+                          <td className="p-1.5 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteItem(idx)}
+                              className="text-[#B14B4B] hover:text-[#B14B4B]/80 p-1 text-sm font-semibold hover:bg-red-50 rounded"
+                              title="Delete row"
+                            >
+                              ✕
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="p-2 border-t border-[#DAD8CE] bg-[#F8F9F5]/40 flex justify-between items-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddRow}
+                  className="h-7 text-[11px] px-2.5 font-semibold text-[#20221F] border-[#DAD8CE] hover:bg-[#EEF0EA]"
+                >
+                  + Add Row
+                </Button>
+                <span className="text-[10px] text-[#6B6E64] font-medium mr-2">
+                  * Required fields
+                </span>
+              </div>
+
+              {parseErrors.length > 0 && (
+                <div className="p-3 bg-red-50/50 border-t border-[#DAD8CE] max-h-24 overflow-y-auto font-mono text-[10px] space-y-1">
+                  {parseErrors.map((err, idx) => (
+                    <div key={idx} className="text-[#B14B4B] flex items-start gap-1">
+                      <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
+                      <span>{err}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <DialogFooter className="pt-2">
               <Button
@@ -463,7 +545,7 @@ export function PasswordImportExportDialog({
                 Cancel
               </Button>
               <Button
-                disabled={isImporting || parsedItems.length === 0}
+                disabled={isImporting || parsedItems.length === 0 || hasInvalidItems}
                 onClick={handleImport}
                 className="bg-[#4F46C7] hover:bg-[#4338a8] text-white font-inter text-xs h-9"
               >

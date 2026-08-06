@@ -15,6 +15,7 @@ export interface DocumentData {
   fileName: string;
   fileType: string;
   fileSize: number;
+  extension?: string | null;
   category:
     | "requirement"
     | "contract"
@@ -26,6 +27,14 @@ export interface DocumentData {
   uploadedAt: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface PaginatedDocumentsResponse {
+  items: DocumentData[];
+  totalCount: number;
+  totalPages: number;
+  page: number;
+  pageSize: number;
 }
 
 class ApiError extends Error {
@@ -55,6 +64,41 @@ export function useDocumentsList(projectId?: string) {
     queryFn: async () => {
       const res = await fetch(url);
       return handleResponse<DocumentData[]>(res);
+    },
+  });
+}
+
+export function useDocumentsListPaginated(
+  projectId?: string,
+  params?: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    category?: string;
+    extension?: string;
+    uploadDate?: string;
+    sortBy?: string;
+  }
+) {
+  const queryParams = new URLSearchParams();
+  if (projectId) queryParams.set("projectId", projectId);
+  if (params) {
+    queryParams.set("page", params.page.toString());
+    queryParams.set("pageSize", params.pageSize.toString());
+    if (params.search) queryParams.set("search", params.search);
+    if (params.category && params.category !== "all") queryParams.set("category", params.category);
+    if (params.extension && params.extension !== "all") queryParams.set("extension", params.extension);
+    if (params.uploadDate && params.uploadDate !== "all") queryParams.set("uploadDate", params.uploadDate);
+    if (params.sortBy) queryParams.set("sortBy", params.sortBy);
+  }
+
+  const url = `${API_ROUTES.DOCUMENTS}?${queryParams.toString()}`;
+
+  return useQuery<PaginatedDocumentsResponse, ApiError>({
+    queryKey: ["documents", projectId || "global", params],
+    queryFn: async () => {
+      const res = await fetch(url);
+      return handleResponse<PaginatedDocumentsResponse>(res);
     },
   });
 }
@@ -145,6 +189,25 @@ export function useDeleteDocument() {
     },
     onError: (error) => {
       toast.error(error.message || "Failed to delete document.");
+    },
+  });
+}
+
+export function useBulkDeleteDocuments() {
+  const queryClient = useQueryClient();
+
+  return useMutation<{ successCount: number; failedCount: number }, ApiError, string[]>({
+    mutationFn: async (ids) => {
+      const res = await fetch("/api/documents/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      return handleResponse<{ successCount: number; failedCount: number }>(res);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
     },
   });
 }

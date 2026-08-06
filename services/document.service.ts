@@ -80,6 +80,7 @@ export class DocumentService {
       fileType: data.fileType,
       fileSize: data.fileSize,
       category: data.category,
+      extension: data.extension || data.fileName.split(".").pop()?.toLowerCase() || "txt",
     });
 
     if (data.projectId) {
@@ -197,6 +198,7 @@ export class DocumentService {
       fileType,
       fileSize,
       category: category || "other",
+      extension: extension.toLowerCase(),
     });
 
     if (projectId) {
@@ -204,5 +206,84 @@ export class DocumentService {
     }
 
     return created;
+  }
+
+  /**
+   * Lists documents with pagination, filters, sorting and search.
+   */
+  static async listPaginated(
+    userId: string,
+    projectId: string | null | undefined,
+    filters: {
+      search?: string;
+      category?: string;
+      extension?: string;
+      uploadDate?: string;
+    },
+    pagination: {
+      page: number;
+      pageSize: number;
+      sortBy?: string;
+    }
+  ): Promise<{
+    items: IDocumentDocument[];
+    totalCount: number;
+    totalPages: number;
+    page: number;
+    pageSize: number;
+  }> {
+    if (projectId) {
+      await ProjectService.getById(userId, projectId);
+    }
+
+    const { items, totalCount } = await DocumentRepository.findByFilters(
+      userId,
+      projectId,
+      filters,
+      pagination
+    );
+
+    const totalPages = Math.ceil(totalCount / pagination.pageSize);
+
+    return {
+      items,
+      totalCount,
+      totalPages,
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+    };
+  }
+
+  /**
+   * Deletes multiple documents in batch, checking ownership and deleting from R2 and MongoDB.
+   */
+  static async bulkDelete(
+    userId: string,
+    ids: string[]
+  ): Promise<{ successCount: number; failedCount: number }> {
+    let successCount = 0;
+    let failedCount = 0;
+
+    await Promise.all(
+      ids.map(async (id) => {
+        try {
+          const doc = await this.verifyDocumentOwnership(userId, id);
+          await deleteObject(doc.r2Key);
+          const deleted = await DocumentRepository.delete(id);
+          if (deleted) {
+            successCount++;
+            if (doc.projectId) {
+              await ProjectService.touch(doc.projectId.toString());
+            }
+          } else {
+            failedCount++;
+          }
+        } catch (err) {
+          failedCount++;
+        }
+      })
+    );
+
+    return { successCount, failedCount };
   }
 }

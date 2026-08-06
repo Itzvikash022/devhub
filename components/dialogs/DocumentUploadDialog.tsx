@@ -52,6 +52,8 @@ export function DocumentUploadDialog({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isDragActive, setIsDragActive] = useState(false);
 
   const { mutateAsync: presignDoc, isPending: isPendingPresign } =
     usePresignDocument(defaultProjectId);
@@ -79,6 +81,7 @@ export function DocumentUploadDialog({
       fileSize: 0,
       category: "other",
       projectId: null,
+      extension: null,
     },
   });
 
@@ -92,10 +95,12 @@ export function DocumentUploadDialog({
         fileSize: 0,
         category: "other",
         projectId: null,
+        extension: null,
       });
       setSelectedFile(null);
       setFileName("");
       setIsUploading(false);
+      setUploadProgress(0);
     }
     onOpenChange(isOpen);
   };
@@ -111,6 +116,7 @@ export function DocumentUploadDialog({
           fileSize: item.fileSize,
           category: item.category,
           projectId: item.projectId || null,
+          extension: item.extension || null,
         });
       } else {
         reset({
@@ -121,6 +127,7 @@ export function DocumentUploadDialog({
           fileSize: 0,
           category: "other",
           projectId: defaultProjectId || null,
+          extension: null,
         });
       }
     }
@@ -130,6 +137,10 @@ export function DocumentUploadDialog({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    processFile(file);
+  };
+
+  const processFile = (file: File) => {
     if (file.size > MAX_DOCUMENT_SIZE) {
       toast.error(`Document size must not exceed ${MAX_DOCUMENT_SIZE / (1024 * 1024)}MB.`);
       return;
@@ -140,11 +151,52 @@ export function DocumentUploadDialog({
 
     // Auto-fill Title with file base name
     const cleanName = file.name.substring(0, file.name.lastIndexOf(".")) || file.name;
-    const fileType = file.type || "application/octet-stream";
+    const extension = file.name.split(".").pop()?.toLowerCase() || null;
+
+    // Derive MIME type — browsers sometimes return empty / generic type for text formats
+    const extensionMimeMap: Record<string, string> = {
+      csv: "text/csv",
+      json: "application/json",
+      yaml: "text/yaml",
+      yml: "text/yaml",
+      log: "text/plain",
+      md: "text/markdown",
+      txt: "text/plain",
+      xml: "application/xml",
+      html: "text/html",
+      svg: "image/svg+xml",
+    };
+    const rawType = file.type || "";
+    const fileType =
+      rawType && rawType !== "application/octet-stream"
+        ? rawType
+        : (extension && extensionMimeMap[extension]) || "application/octet-stream";
+
     setValue("title", cleanName, { shouldValidate: true });
     setValue("fileName", file.name, { shouldValidate: true });
     setValue("fileType", fileType, { shouldValidate: true });
     setValue("fileSize", file.size, { shouldValidate: true });
+    setValue("extension", extension, { shouldValidate: true });
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setIsDragActive(true);
+    } else if (e.type === "dragleave") {
+      setIsDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      processFile(e.dataTransfer.files[0]);
+    }
   };
 
   const onSubmit = async (data: ConfirmDocumentInput) => {
@@ -155,6 +207,7 @@ export function DocumentUploadDialog({
           title: data.title,
           category: data.category,
           projectId: data.projectId || null,
+          extension: data.extension || null,
         };
 
         await updateDoc({ id: item._id, data: updatePayload });
@@ -170,32 +223,60 @@ export function DocumentUploadDialog({
       }
 
       setIsUploading(true);
-      try {
-        const formData = new FormData();
-        formData.append("file", selectedFile);
-        formData.append("title", data.title || selectedFile.name);
-        formData.append("category", data.category || "other");
-        if (data.projectId) {
-          formData.append("projectId", data.projectId);
-        }
+      setUploadProgress(0);
 
-        const res = await fetch("/api/documents/upload", {
-          method: "POST",
-          body: formData,
+      try {
+        // 1. Get presigned upload URL from R2
+        const { uploadUrl, r2Key } = await presignDoc({
+          fileName: selectedFile.name,
+          fileType: selectedFile.type || "application/octet-stream",
         });
 
-        const json = await res.json();
-        if (!json.success) {
-          throw new Error(json.error?.message || "Failed to upload document.");
-        }
+        // 2. Perform direct browser-to-R2 PUT upload with progress
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("PUT", uploadUrl, true);
+          xhr.setRequestHeader("Content-Type", selectedFile.type || "application/octet-stream");
+
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const percentage = Math.round((event.loaded / event.total) * 100);
+              setUploadProgress(percentage);
+            }
+          };
+
+          xhr.onload = () => {
+            if (xhr.status === 200) {
+              resolve();
+            } else {
+              reject(new Error(`Upload failed with status: ${xhr.status}`));
+            }
+          };
+
+          xhr.onerror = () => reject(new Error("Network error during direct upload."));
+          xhr.send(selectedFile);
+        });
+
+        // 3. Confirm upload in backend MongoDB
+        const extension = selectedFile.name.split(".").pop()?.toLowerCase() || null;
+        await confirmDoc({
+          r2Key,
+          title: data.title || selectedFile.name,
+          category: data.category || "other",
+          projectId: data.projectId || null,
+          fileName: selectedFile.name,
+          fileType: selectedFile.type || "application/octet-stream",
+          fileSize: selectedFile.size,
+          extension,
+        });
 
         queryClient.invalidateQueries({ queryKey: ["documents"] });
-        toast.success(`Document "${data.title || selectedFile.name}" uploaded successfully.`);
         handleOpenChange(false);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Document upload failed.");
       } finally {
         setIsUploading(false);
+        setUploadProgress(0);
       }
     }
   };
@@ -222,23 +303,55 @@ export function DocumentUploadDialog({
           <div className="space-y-4 py-1 text-left">
             {/* File selection dropzone (hidden during edit mode) */}
             {!isEdit && (
-              <div className="border-border hover:border-primary/60 bg-muted/5 group relative cursor-pointer rounded-lg border-2 border-dashed p-4 text-center transition-colors">
+              <div
+                className={`relative rounded-lg border-2 border-dashed p-5 text-center transition-all cursor-pointer ${
+                  isDragActive
+                    ? "border-primary bg-primary/5 scale-[1.01]"
+                    : "border-border hover:border-primary/60 bg-muted/5"
+                } ${isUploading ? "pointer-events-none opacity-70" : ""}`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+              >
                 <input
                   type="file"
                   onChange={handleFileChange}
                   disabled={isPending}
-                  className="absolute inset-0 cursor-pointer opacity-0"
+                  className="absolute inset-0 w-full h-full cursor-pointer opacity-0"
                 />
-                <div className="space-y-2">
-                  <Upload className="text-muted-foreground group-hover:text-primary mx-auto h-8 w-8 transition-colors" />
-                  <div className="text-muted-foreground text-xs">
-                    {fileName ? (
+                <div className="space-y-2 pointer-events-none">
+                  {isUploading ? (
+                    <Loader2 className="mx-auto h-7 w-7 animate-spin text-primary" />
+                  ) : (
+                    <Upload className={`mx-auto h-7 w-7 transition-colors ${isDragActive ? "text-primary" : "text-muted-foreground"}`} />
+                  )}
+                  <div className="text-xs text-muted-foreground">
+                    {isUploading ? (
+                      <span className="font-semibold text-foreground">
+                        Uploading to R2... {uploadProgress}%
+                      </span>
+                    ) : fileName ? (
                       <span className="text-foreground font-semibold">{fileName}</span>
+                    ) : isDragActive ? (
+                      <span className="text-primary font-semibold">Drop file here</span>
                     ) : (
-                      <span>Click or drag specifications file here (Max 25MB)</span>
+                      <span>
+                        <span className="text-primary font-semibold">Click to browse</span>{" "}
+                        or drag a document here (Max 25MB)
+                      </span>
                     )}
                   </div>
                 </div>
+                {/* Progress Bar */}
+                {isUploading && (
+                  <div className="mt-3 w-full bg-muted rounded-full h-1.5 overflow-hidden pointer-events-none">
+                    <div
+                      className="bg-primary h-1.5 rounded-full transition-all duration-200"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                )}
               </div>
             )}
 

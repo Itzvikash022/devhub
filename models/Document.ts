@@ -8,6 +8,7 @@ export interface IDocument {
   fileName: string;
   fileType: string;
   fileSize: number;
+  extension?: string | null;
   category:
     | "requirement"
     | "contract"
@@ -77,6 +78,11 @@ const DocumentSchema: Schema = new Schema<IDocumentDocument>(
         message: "Invalid document category",
       },
       required: [true, "Category is required"],
+      index: true,
+    },
+    extension: {
+      type: String,
+      default: null,
       index: true,
     },
     uploadedAt: {

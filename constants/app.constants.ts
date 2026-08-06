@@ -22,12 +22,33 @@ export const ALLOWED_IMAGE_TYPES = [
 ] as const;
 
 export const ALLOWED_DOCUMENT_TYPES = [
+  // Documents
   "application/pdf",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  // Text
   "text/plain",
   "text/markdown",
   "text/x-markdown",
+  "text/csv",
+  "text/yaml",
+  "text/x-yaml",
+  "application/x-yaml",
+  "text/x-log",
+  "text/log",
+  // Data / Code
+  "application/json",
+  "application/xml",
+  "text/xml",
+  "text/html",
+  // Images (diagrams, exported assets)
+  "image/svg+xml",
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
 ] as const;
 
 // Pagination

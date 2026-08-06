@@ -88,23 +88,11 @@ export default function HtmlToolPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={handleLoadSample}
-              className="px-2.5 py-1 text-xs font-inter border border-[#DAD8CE] rounded-md bg-[#F8F9F5] text-[#20221F] hover:bg-[#EEF0EA] flex items-center gap-1 transition-colors"
-            >
-              <FileCode className="w-3.5 h-3.5" /> Sample HTML
-            </button>
-            <button
               onClick={handleCopy}
               className="px-2.5 py-1 text-xs font-inter border border-[#DAD8CE] rounded-md bg-[#F8F9F5] text-[#20221F] hover:bg-[#EEF0EA] flex items-center gap-1 transition-colors"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
               {copied ? "Copied" : "Copy HTML"}
-            </button>
-            <button
-              onClick={() => setIsFullscreen(true)}
-              className="px-2.5 py-1 text-xs font-inter border border-[#DAD8CE] rounded-md bg-[#F8F9F5] text-[#4F46C7] hover:bg-[#EEF0EA] flex items-center gap-1 transition-colors"
-            >
-              <Maximize2 className="w-3.5 h-3.5" /> Fullscreen Preview
             </button>
             <button
               onClick={handleClear}
@@ -142,12 +130,18 @@ export default function HtmlToolPage() {
                 <Maximize2 className="w-3 h-3" /> Expand
               </button>
             </div>
-            <iframe
-              srcDoc={content}
-              title="HTML Live Preview"
-              sandbox="allow-scripts"
-              className="flex-1 w-full h-full border-none bg-white min-h-[500px]"
-            />
+            {isLoaded ? (
+              <iframe
+                srcDoc={content}
+                title="HTML Live Preview"
+                sandbox="allow-scripts"
+                className="flex-1 w-full h-full border-none bg-white min-h-[500px]"
+              />
+            ) : (
+              <div className="flex-1 w-full h-full min-h-[500px] bg-white flex items-center justify-center text-xs text-[#6B6E64]">
+                Loading preview...
+              </div>
+            )}
           </div>
         </div>
 

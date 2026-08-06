@@ -97,23 +97,11 @@ export default function MarkdownToolPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={handleLoadSample}
-              className="px-2.5 py-1 text-xs font-inter border border-[#DAD8CE] rounded-md bg-[#F8F9F5] text-[#20221F] hover:bg-[#EEF0EA] flex items-center gap-1 transition-colors"
-            >
-              <FileText className="w-3.5 h-3.5" /> Sample Template
-            </button>
-            <button
               onClick={handleCopyMd}
               className="px-2.5 py-1 text-xs font-inter border border-[#DAD8CE] rounded-md bg-[#F8F9F5] text-[#20221F] hover:bg-[#EEF0EA] flex items-center gap-1 transition-colors"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
               {copied ? "Copied" : "Copy MD"}
-            </button>
-            <button
-              onClick={() => setIsFullscreen(true)}
-              className="px-2.5 py-1 text-xs font-inter border border-[#DAD8CE] rounded-md bg-[#F8F9F5] text-[#4F46C7] hover:bg-[#EEF0EA] flex items-center gap-1 transition-colors"
-            >
-              <Maximize2 className="w-3.5 h-3.5" /> Fullscreen Preview
             </button>
             <button
               onClick={handleClear}

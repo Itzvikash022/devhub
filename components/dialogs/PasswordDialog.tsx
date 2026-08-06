@@ -19,6 +19,15 @@ import { createPasswordSchema, CreatePasswordInput } from "@/schemas/password.sc
 import { useCreatePassword, useUpdatePassword, PasswordData } from "@/hooks/usePasswords";
 import { useProjectsList } from "@/hooks/useProjects";
 import { Loader2 } from "lucide-react";
+import { z } from "zod";
+
+const editPasswordSchema = createPasswordSchema.extend({
+  secret: z
+    .string()
+    .max(200, "Password/Secret cannot exceed 200 characters")
+    .optional()
+    .or(z.literal("")),
+});
 
 interface PasswordDialogProps {
   open: boolean;
@@ -50,7 +59,7 @@ export function PasswordDialog({
     reset,
     formState: { errors },
   } = useForm<CreatePasswordInput>({
-    resolver: zodResolver(createPasswordSchema) as unknown as Resolver<CreatePasswordInput>,
+    resolver: zodResolver(isEdit ? editPasswordSchema : createPasswordSchema) as unknown as Resolver<CreatePasswordInput>,
     defaultValues: {
       label: "",
       username: "",

@@ -12,6 +12,7 @@ import { SetPageHeader } from "@/components/layout/SetPageHeader";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { ROUTES } from "@/constants/routes.constants";
 import { cn } from "@/lib/utils";
+import { useActiveProject } from "@/components/layout/ActiveProjectContext";
 
 interface ProjectWorkspaceLayoutProps {
   children: React.ReactNode;
@@ -20,6 +21,7 @@ interface ProjectWorkspaceLayoutProps {
 export default function ProjectWorkspaceLayout({ children }: ProjectWorkspaceLayoutProps) {
   const { id } = useParams() as { id: string };
   const pathname = usePathname();
+  const { activeProjectId } = useActiveProject();
 
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -154,48 +156,50 @@ export default function ProjectWorkspaceLayout({ children }: ProjectWorkspaceLay
       />
 
       {/* Sub-nav: back link + status chip + tabs */}
-      <div
-        className="shrink-0 border-b px-6 pt-3 pb-0 space-y-3"
-        style={{ borderColor: "var(--line)", backgroundColor: "var(--paper)" }}
-      >
-        {/* Back + status row */}
-        <div className="flex items-center gap-3">
-          <Link
-            href={ROUTES.PROJECTS}
-            className="inline-flex items-center gap-1 font-inter text-[12px] transition-colors"
-            style={{ color: "var(--text-dim)" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-dim)"; }}
-          >
-            <ChevronLeft className="h-3 w-3" />
-            Projects
-          </Link>
-          <span style={{ color: "var(--line)" }}>/</span>
-          <StatusChip status={project.status as any} />
-        </div>
+      {activeProjectId !== id && (
+        <div
+          className="shrink-0 border-b px-6 pt-3 pb-0 space-y-3"
+          style={{ borderColor: "var(--line)", backgroundColor: "var(--paper)" }}
+        >
+          {/* Back + status row */}
+          <div className="flex items-center gap-3">
+            <Link
+              href={ROUTES.PROJECTS}
+              className="inline-flex items-center gap-1 font-inter text-[12px] transition-colors"
+              style={{ color: "var(--text-dim)" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-dim)"; }}
+            >
+              <ChevronLeft className="h-3 w-3" />
+              Projects
+            </Link>
+            <span style={{ color: "var(--line)" }}>/</span>
+            <StatusChip status={project.status as any} />
+          </div>
 
-        {/* Tab sub-navigation */}
-        <div className="no-scrollbar flex items-center gap-0 overflow-x-auto">
-          {tabs.map((tab) => {
-            const active = pathname.startsWith(tab.href);
-            return (
-              <Link
-                key={tab.href}
-                href={tab.href}
-                className={cn(
-                  "border-b-2 px-3 py-2 font-inter text-[13px] whitespace-nowrap transition-colors",
-                  active
-                    ? "border-[#4F46C7] text-[#4F46C7] font-medium"
-                    : "border-transparent hover:text-[#20221F]"
-                )}
-                style={!active ? { color: "var(--text-dim)" } : {}}
-              >
-                {tab.label}
-              </Link>
-            );
-          })}
+          {/* Tab sub-navigation */}
+          <div className="no-scrollbar flex items-center gap-0 overflow-x-auto">
+            {tabs.map((tab) => {
+              const active = pathname.startsWith(tab.href);
+              return (
+                <Link
+                  key={tab.href}
+                  href={tab.href}
+                  className={cn(
+                    "border-b-2 px-3 py-2 font-inter text-[13px] whitespace-nowrap transition-colors",
+                    active
+                      ? "border-[#4F46C7] text-[#4F46C7] font-medium"
+                      : "border-transparent hover:text-[#20221F]"
+                  )}
+                  style={!active ? { color: "var(--text-dim)" } : {}}
+                >
+                  {tab.label}
+                </Link>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Nested tab page contents */}
       <div className="flex-1 overflow-y-auto" style={{ backgroundColor: "var(--paper)" }}>

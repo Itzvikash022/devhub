@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus, Search, Layers, FileText, CheckSquare, Archive } from "lucide-react";
 import { useProjectsList } from "@/hooks/useProjects";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { useActiveProject } from "@/components/layout/ActiveProjectContext";
 import { Input } from "@/components/ui/input";
 import { StatusChip } from "@/components/shared/StatusChip";
 import { ProjectDialog } from "@/components/dialogs/ProjectDialog";
@@ -23,6 +24,7 @@ const statusFilters: { value: FilterStatus; label: string }[] = [
 
 export default function ProjectsPage() {
   usePageTitle("Projects");
+  const { activeProjectId } = useActiveProject();
   const [filter, setFilter] = useState<FilterStatus>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -74,16 +76,18 @@ export default function ProjectsPage() {
       <SetPageHeader
         title="Projects"
         actions={
-          <button
-            onClick={() => setDialogOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-inter text-[13px] transition-colors"
-            style={{ backgroundColor: "var(--accent-color)", color: "#fff" }}
-            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.backgroundColor = "#4338a8")}
-            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.backgroundColor = "var(--accent-color)")}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            New project
-          </button>
+          !activeProjectId && (
+            <button
+              onClick={() => setDialogOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-inter text-[13px] transition-colors"
+              style={{ backgroundColor: "var(--accent-color)", color: "#fff" }}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.backgroundColor = "#4338a8")}
+              onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.backgroundColor = "var(--accent-color)")}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              New project
+            </button>
+          )
         }
       />
       <div className="mx-auto max-w-[1100px] space-y-6 p-6 text-left">
@@ -141,7 +145,7 @@ export default function ProjectsPage() {
               ? "Create your first project to get started."
               : `No projects with status "${filter}".`}
           </p>
-          {filter === "all" && (
+          {filter === "all" && !activeProjectId && (
             <button
               onClick={() => setDialogOpen(true)}
               className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-[#4F46C7] text-white font-inter text-sm"

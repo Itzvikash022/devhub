@@ -217,6 +217,19 @@ When a task with a due date is created or updated, the service layer automatical
 
 ## Patch Notes
 
+### v2.2.0 — Active Project Context (Site Flow), Task Selective Export, Password Import/Export Table, and Notes Editor Optimizations
+- **Active Project Context (Working Project Picker) (In Testing Mode)**: Introduced a "Working Project" dropdown in the header to filter the Password, Document, Calendar, and Image vaults to specific projects. In Project Mode, the navigation sidebar dynamically replaces the global view with a complete project-specific workspace sidebar (Notes, Details, Progress, Pipeline, Images, Passwords, Documents, Calendar) and adds a "Back to Global" toggle.
+- **Task Selective Export & Export Preview**: Repurposed task checkboxes for selective export scoping. Created a floating bulk actions toolbar and a full-height interactive Export Preview modal supporting copying formatted tasks as plain-text or Markdown to the clipboard instantly.
+- **Password CSV Import & Interactive Table Editor**: Integrated a spreadsheet CSV parser and an interactive table editor in the password import dialog, allowing cell modifications, row insertions/deletions, and validation of required fields prior to database persistence.
+- **Password-Protected & Multi-Scope Exports**: Added POST-based export authorization verified via the user's profile bcrypt password hash. Supports multi-selecting label/project scopes for downloading decrypted plain text CSV sheets.
+- **Copy-on-Click Credential Tooltips**: Enabled hover states to copy usernames and passwords to the clipboard. Password clicks securely invoke a background reveal API endpoint, decodes the AES-256-GCM ciphertext, and displays a floating "Copied!" notification.
+- **Image Vault Parallel Upload Queue & Thumbnail Compression**: Upgraded uploads to a parallel queue manager (concurrency 3) with dynamic progress bars. Compress uploaded screenshots and mockups client-side to max 300px WebP data URLs using canvas, saving R2 egress fees by serving thumbnails directly from the MongoDB document layer.
+- **Notes Editor Double-Click & Auto-Save**: Refactored notes to auto-save title/content in the background on click-outside or Escape. Enabled editing via double-clicking. Prevents block editor errors on raw HTML snippets by routing them to a raw tabbed editor workspace.
+- **Workspace Navigation loading.tsx Boundary**: Implemented a global workspace route loader boundary featuring a spinning Lucide loader and pulse animation for smooth page transitions.
+- **TanStack Query Cache Tuning**: Tuned query defaults to 10-minute fresh states and 15-minute garbage collection. Added cache invalidations on all dashboard metrics when tasks, projects, calendar events, documents, or notes are changed.
+- **Document Vault Zoom & Format Whitelist**: Expanded allowed file types to support CSV, JSON, YAML, log, xlsx, and SVG, and integrated browser extension MIME-type fallbacks. Configured PDF previews to fit horizontal dimensions and stretch to fill the viewport height.
+- **Cleanup and Assignee Removal**: Removed unused assignee properties across task schemas, database models, dashboard widgets, and UI tables to simplify workflow tracking.
+
 ### v2.1.0 — Progress Tracker Redesign, Task Modals, Field Drag & Drop, Upload API, Next.js 16 Auth Proxy & Dynamic Titles
 - **Section Rearrange Drag Preview Centering**: Pinned the dragged section card preview's exact center directly under the cursor (`transform: translate(-50%, -50%)`) inside container-relative absolute bounds.
 - **Sidebar Recently Updated Section**: Renamed sidebar projects list to `RECENTLY UPDATED` with direct header link (`/projects`), displaying top 5 most recently active projects (`updatedAt` descending).

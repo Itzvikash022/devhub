@@ -2,12 +2,14 @@
 
 import { ImageVaultView } from "@/components/shared/ImageVaultView";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { useActiveProject } from "@/components/layout/ActiveProjectContext";
 
 export default function GlobalImagesPage() {
-  usePageTitle("Image Vault");
+  const { activeProjectId } = useActiveProject();
+  usePageTitle(activeProjectId ? "Images" : "Image Vault");
   return (
     <div className="p-6">
-      <ImageVaultView />
+      <ImageVaultView projectId={activeProjectId ?? undefined} />
     </div>
   );
 }

@@ -217,6 +217,16 @@ When a task with a due date is created or updated, the service layer automatical
 
 ## Patch Notes
 
+### v2.3.0 — Sidebar Reorganization, Project-Scoped Scoping & Bug Fixes
+- **Sidebar Project-Specific Layout**: Reorganized project mode sidebar items into dedicated Navigation and Vault sections, matching the Global Mode design layout for a consistent and premium user experience.
+- **Dashboard Project Scoping**: Updated the dashboard API and page to scope activity, calendar deadlines, and high priority tasks to the currently active project workspace. Conditionally hid the global "Recent Projects" list and "+ New project" creation controls.
+- **Project-Specific Search**: Configured search queries to filter note, document, password, and calendar event results strictly to the selected project, eliminating cross-project search leakage.
+- **Header Project Picker Hydration Fix**: Solved Next.js hydration mismatch warning by shifting the reading of the active project context's localStorage key from state initialization to a post-mount client-side useEffect hook.
+- **DOM Nesting & Accessibility Fix**: Restructured the project switcher in the header to change the outer wrapper from a button to a div with role="button" and keyboard accessibility (tabIndex, Enter/Space key events), correcting HTML button-in-button nesting warning.
+- **Workspace Switcher Redirection**: Configured the project context selector to automatically redirect the user to the main dashboard page (`/`) on project selection switch, avoiding module-page context mismatches.
+- **SetPageHeader Action Propagation**: Fixed a bug where topbar header actions did not update dynamically when actions changed on the client by adding the `actions` element to the SetPageHeader component's useEffect dependency array.
+- **Dashboard Activity Feed Placeholder**: Added a "No activity yet." empty state message when a selected project has no recent dashboard activities.
+
 ### v2.2.0 — Active Project Context (Site Flow), Task Selective Export, Password Import/Export Table, and Notes Editor Optimizations
 - **Active Project Context (Working Project Picker) (In Testing Mode)**: Introduced a "Working Project" dropdown in the header to filter the Password, Document, Calendar, and Image vaults to specific projects. In Project Mode, the navigation sidebar dynamically replaces the global view with a complete project-specific workspace sidebar (Notes, Details, Progress, Pipeline, Images, Passwords, Documents, Calendar) and adds a "Back to Global" toggle.
 - **Task Selective Export & Export Preview**: Repurposed task checkboxes for selective export scoping. Created a floating bulk actions toolbar and a full-height interactive Export Preview modal supporting copying formatted tasks as plain-text or Markdown to the clipboard instantly.

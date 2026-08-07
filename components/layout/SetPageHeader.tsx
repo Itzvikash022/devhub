@@ -19,7 +19,7 @@ export function SetPageHeader({ title, subtitle, actions }: SetPageHeaderProps) 
   useEffect(() => {
     setHeader({ title, subtitle, actions });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, subtitle]);
+  }, [title, subtitle, actions]);
 
   return null;
 }

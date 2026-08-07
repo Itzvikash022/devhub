@@ -7,7 +7,9 @@ import { Note } from "@/models/Note";
 import { DocumentModel } from "@/models/Document";
 import { successResponse, unauthorizedResponse, internalErrorResponse } from "@/lib/response";
 
-export async function GET() {
+import { NextRequest } from "next/server";
+
+export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
     if (!session) {
@@ -17,6 +19,9 @@ export async function GET() {
     await connectToDatabase();
     const userId = session.userId;
 
+    const { searchParams } = new URL(request.url);
+    const projectId = searchParams.get("projectId") || undefined;
+
     // 1. Fetch user's active/on-hold projects (sorted by updatedAt desc)
     const userProjects = await Project.find({
       userId,
@@ -25,24 +30,27 @@ export async function GET() {
       .sort({ updatedAt: -1 })
       .exec();
 
-    const recentProjectsRaw = userProjects.slice(0, 3);
-    const recentProjects = await Promise.all(
-      recentProjectsRaw.map(async (p) => {
-        const noteCount = await Note.countDocuments({ projectId: p._id });
-        const taskCount = await Task.countDocuments({ projectId: p._id });
-        return {
-          _id: p._id.toString(),
-          name: p.name,
-          description: p.description,
-          status: p.status,
-          updatedAt: p.updatedAt,
-          noteCount,
-          taskCount,
-        };
-      })
-    );
-
     const projectIds = userProjects.map((p) => p._id);
+
+    let recentProjects: any[] = [];
+    if (!projectId) {
+      const recentProjectsRaw = userProjects.slice(0, 3);
+      recentProjects = await Promise.all(
+        recentProjectsRaw.map(async (p) => {
+          const noteCount = await Note.countDocuments({ projectId: p._id });
+          const taskCount = await Task.countDocuments({ projectId: p._id });
+          return {
+            _id: p._id.toString(),
+            name: p.name,
+            description: p.description,
+            status: p.status,
+            updatedAt: p.updatedAt,
+            noteCount,
+            taskCount,
+          };
+        })
+      );
+    }
 
     // 2. Fetch upcoming deadlines (next 7 days starting from today's start)
     const now = new Date();
@@ -51,42 +59,60 @@ export async function GET() {
       startOfToday.getTime() + 7 * 24 * 60 * 60 * 1000 + 23 * 60 * 60 * 1000 + 59 * 60 * 1000
     );
 
-    const upcomingEvents = await CalendarEvent.find({
+    const deadlineFilter: any = {
       userId,
       date: { $gte: startOfToday, $lte: sevenDaysLater },
-    })
+    };
+    if (projectId) {
+      deadlineFilter.projectId = projectId;
+    }
+
+    const upcomingEvents = await CalendarEvent.find(deadlineFilter)
       .sort({ date: 1 })
       .limit(10)
       .exec();
 
-    // 3. Fetch pending high priority tasks across all active projects
-    const highPriorityTasks = await Task.find({
-      projectId: { $in: projectIds },
+    // 3. Fetch pending high priority tasks across active projects
+    const taskFilter: any = {
       priority: "high",
       status: { $ne: "done" },
-    })
+    };
+    if (projectId) {
+      taskFilter.projectId = projectId;
+    } else {
+      taskFilter.projectId = { $in: projectIds };
+    }
+
+    const highPriorityTasks = await Task.find(taskFilter)
       .sort({ updatedAt: -1 })
       .limit(10)
       .exec();
 
     // 4. Fetch recent activity (last 5 notes, tasks, and documents)
-    const recentNotes = await Note.find({
-      projectId: { $in: projectIds },
-    })
+    const activityNoteFilter: any = {};
+    const activityTaskFilter: any = {};
+    const activityDocFilter: any = { userId };
+
+    if (projectId) {
+      activityNoteFilter.projectId = projectId;
+      activityTaskFilter.projectId = projectId;
+      activityDocFilter.projectId = projectId;
+    } else {
+      activityNoteFilter.projectId = { $in: projectIds };
+      activityTaskFilter.projectId = { $in: projectIds };
+    }
+
+    const recentNotes = await Note.find(activityNoteFilter)
       .sort({ updatedAt: -1 })
       .limit(5)
       .exec();
 
-    const recentTasks = await Task.find({
-      projectId: { $in: projectIds },
-    })
+    const recentTasks = await Task.find(activityTaskFilter)
       .sort({ updatedAt: -1 })
       .limit(5)
       .exec();
 
-    const recentDocs = await DocumentModel.find({
-      userId,
-    })
+    const recentDocs = await DocumentModel.find(activityDocFilter)
       .sort({ updatedAt: -1 })
       .limit(5)
       .exec();

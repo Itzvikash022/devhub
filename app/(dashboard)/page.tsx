@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useDashboardData } from "@/hooks/useDashboard";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { useActiveProject } from "@/components/layout/ActiveProjectContext";
 import { ProjectDialog } from "@/components/dialogs/ProjectDialog";
 import { ROUTES } from "@/constants/routes.constants";
 import { StatusChip } from "@/components/shared/StatusChip";
@@ -25,7 +26,8 @@ const NOW = Date.now();
 
 export default function DashboardPage() {
   usePageTitle("DevHub");
-  const { data, isLoading, error } = useDashboardData();
+  const { activeProjectId } = useActiveProject();
+  const { data, isLoading, error } = useDashboardData(activeProjectId);
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
@@ -122,7 +124,7 @@ export default function DashboardPage() {
     return `Modified ${activity.type} ${title}`;
   }
 
-  const isEmptyState = recentProjects.length === 0;
+  const isEmptyState = !activeProjectId && recentProjects.length === 0;
 
   if (isEmptyState) {
     return (
@@ -172,118 +174,125 @@ export default function DashboardPage() {
         title="Dashboard"
         subtitle={format(new Date(), "EEEE, d MMMM yyyy")}
         actions={
-          <button
-            onClick={handleCreateProjectClick}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-inter text-[13px] transition-colors"
-            style={{ backgroundColor: "var(--accent-color)", color: "#fff" }}
-            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.backgroundColor = "#4338a8")}
-            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.backgroundColor = "var(--accent-color)")}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            New project
-          </button>
+          !activeProjectId && (
+            <button
+              onClick={handleCreateProjectClick}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-inter text-[13px] transition-colors"
+              style={{ backgroundColor: "var(--accent-color)", color: "#fff" }}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.backgroundColor = "#4338a8")}
+              onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.backgroundColor = "var(--accent-color)")}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              New project
+            </button>
+          )
         }
       />
       <div className="mx-auto max-w-[1280px] space-y-6 p-6">
 
       {/* Recent Projects Section */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-heading text-[17px] font-medium text-[#20221F]">Recent Projects</h2>
-          <Link
-            href={ROUTES.PROJECTS}
-            className="flex items-center gap-1 font-mono text-[11px] text-[#6B6E64] hover:text-[#4F46C7] transition-colors"
-          >
-            All projects <ArrowRight className="w-3 h-3" />
-          </Link>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {recentProjects.map((project) => (
+      {!activeProjectId && (
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-heading text-[17px] font-medium text-[#20221F]">Recent Projects</h2>
             <Link
-              key={project._id}
-              href={ROUTES.PROJECT_NOTES(project._id) as any}
-              className="block p-4 rounded-lg border border-[#DAD8CE] bg-[#F8F9F5] hover:border-[#4F46C7] transition-colors group"
+              href={ROUTES.PROJECTS}
+              className="flex items-center gap-1 font-mono text-[11px] text-[#6B6E64] hover:text-[#4F46C7] transition-colors"
             >
-              <div className="flex items-start justify-between mb-2">
-                <h3 className="font-heading text-[16px] font-medium text-[#20221F] group-hover:text-[#4F46C7] transition-colors leading-tight">
-                  {project.name}
-                </h3>
-                <StatusChip status={project.status as any} className="shrink-0 ml-2" />
-              </div>
-              <p className="font-inter text-[12px] text-[#6B6E64] line-clamp-2 mb-3">
-                {project.description || "No project description provided."}
-              </p>
-              <div className="flex items-center gap-4 font-mono text-[11px] text-[#6B6E64]">
-                <span className="flex items-center gap-1">
-                  <FileText className="w-3 h-3" />
-                  {project.noteCount || 0} notes
-                </span>
-                <span className="flex items-center gap-1">
-                  <CheckSquare className="w-3 h-3" />
-                  {project.taskCount || 0} tasks
-                </span>
-                <span className="ml-auto">
-                  {formatRelativeTime(project.updatedAt)}
-                </span>
-              </div>
+              All projects <ArrowRight className="w-3 h-3" />
             </Link>
-          ))}
-        </div>
-      </section>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {recentProjects.map((project) => (
+              <Link
+                key={project._id}
+                href={ROUTES.PROJECT_NOTES(project._id) as any}
+                className="block p-4 rounded-lg border border-[#DAD8CE] bg-[#F8F9F5] hover:border-[#4F46C7] transition-colors group"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="font-heading text-[16px] font-medium text-[#20221F] group-hover:text-[#4F46C7] transition-colors leading-tight">
+                    {project.name}
+                  </h3>
+                  <StatusChip status={project.status as any} className="shrink-0 ml-2" />
+                </div>
+                <p className="font-inter text-[12px] text-[#6B6E64] line-clamp-2 mb-3">
+                  {project.description || "No project description provided."}
+                </p>
+                <div className="flex items-center gap-4 font-mono text-[11px] text-[#6B6E64]">
+                  <span className="flex items-center gap-1">
+                    <FileText className="w-3 h-3" />
+                    {project.noteCount || 0} notes
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <CheckSquare className="w-3 h-3" />
+                    {project.taskCount || 0} tasks
+                  </span>
+                  <span className="ml-auto">
+                    {formatRelativeTime(project.updatedAt)}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Bento grid: Activity + Deadlines + High Priority */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Activity Ledger — spans 2 cols */}
         <section className="lg:col-span-2 rounded-lg border border-[#DAD8CE] bg-[#F8F9F5] p-5 text-left">
           <h2 className="font-heading text-[17px] font-medium text-[#20221F] mb-4">Activity</h2>
-          <ol className="space-y-0">
-            {recentActivity.map((activity, i) => {
-              const project = recentProjects.find((p) => p._id === activity.projectId);
-              const isLast = i === recentActivity.length - 1;
-              const actionText = getActivityText(activity);
-              const redirectUrl =
-                activity.type === "note"
-                  ? activity.projectId
-                    ? ROUTES.PROJECT_NOTES(activity.projectId)
-                    : ROUTES.PROJECTS
-                  : activity.type === "task"
-                  ? activity.projectId
-                    ? ROUTES.PROJECT_PROGRESS(activity.projectId)
-                    : ROUTES.PROJECTS
-                  : activity.projectId
-                  ? ROUTES.PROJECT_DOCUMENTS(activity.projectId)
-                  : ROUTES.DOCUMENTS;
+          {recentActivity.length === 0 ? (
+            <p className="font-inter text-[13px] text-[#6B6E64]">No activity yet.</p>
+          ) : (
+            <ol className="space-y-0">
+              {recentActivity.map((activity, i) => {
+                const project = recentProjects.find((p) => p._id === activity.projectId);
+                const isLast = i === recentActivity.length - 1;
+                const actionText = getActivityText(activity);
+                const redirectUrl =
+                  activity.type === "note"
+                    ? activity.projectId
+                      ? ROUTES.PROJECT_NOTES(activity.projectId)
+                      : ROUTES.PROJECTS
+                    : activity.type === "task"
+                    ? activity.projectId
+                      ? ROUTES.PROJECT_PROGRESS(activity.projectId)
+                      : ROUTES.PROJECTS
+                    : activity.projectId
+                    ? ROUTES.PROJECT_DOCUMENTS(activity.projectId)
+                    : ROUTES.DOCUMENTS;
 
-              return (
-                <li key={`${activity.type}-${activity.id}`} className="relative flex gap-3 pl-5">
-                  {/* Connecting line */}
-                  {!isLast && (
-                    <span className="absolute left-[7px] top-5 bottom-0 w-px bg-[#DAD8CE]" />
-                  )}
-                  {/* Commit dot */}
-                  <span className="absolute left-0 top-1 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-[#EEF0EA] border border-[#DAD8CE] shrink-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#6B6E64]" />
-                  </span>
-                  <div className="pb-4 min-w-0 flex-1">
-                    <p className="font-inter text-[13px] text-[#20221F] leading-snug">
-                      {actionText}
-                      {project && (
-                        <Link
-                          href={redirectUrl as any}
-                          className="ml-1 text-[#4F46C7] hover:underline"
-                        >
-                          — {project.name}
-                        </Link>
-                      )}
-                    </p>
-                    <p className="font-mono text-[11px] text-[#6B6E64] mt-0.5">
-                      {format(new Date(activity.updatedAt), "yyyy-MM-dd HH:mm")}
-                    </p>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
+                return (
+                  <li key={`${activity.type}-${activity.id}`} className="relative flex gap-3 pl-5">
+                    {/* Connecting line */}
+                    {!isLast && (
+                      <span className="absolute left-[7px] top-5 bottom-0 w-px bg-[#DAD8CE]" />
+                    )}
+                    {/* Commit dot */}
+                    <span className="absolute left-0 top-1 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-[#EEF0EA] border border-[#DAD8CE] shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#6B6E64]" />
+                    </span>
+                    <div className="pb-4 min-w-0 flex-1">
+                      <p className="font-inter text-[13px] text-[#20221F] leading-snug">
+                        {actionText}
+                        {project && (
+                          <Link
+                            href={redirectUrl as any}
+                            className="ml-1 text-[#4F46C7] hover:underline"
+                          >
+                            — {project.name}
+                          </Link>
+                        )}
+                      </p>
+                      <p className="font-mono text-[11px] text-[#6B6E64] mt-0.5">
+                        {format(new Date(activity.updatedAt), "yyyy-MM-dd HH:mm")}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
         </section>
 
         {/* Right column: Deadlines + High Priority */}

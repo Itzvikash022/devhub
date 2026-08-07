@@ -18,6 +18,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const q = searchParams.get("q")?.trim() || "";
 
+    const projectId = searchParams.get("projectId") || undefined;
+
     if (!q) {
       return successResponse({
         projects: [],
@@ -32,11 +34,15 @@ export async function GET(request: NextRequest) {
     const userId = session.userId;
 
     // Search active projects
-    const matchingProjects = await Project.find({
+    const projectFilter: any = {
       userId,
       status: { $ne: "archived" },
       name: { $regex: q, $options: "i" },
-    })
+    };
+    if (projectId) {
+      projectFilter._id = projectId;
+    }
+    const matchingProjects = await Project.find(projectFilter)
       .limit(10)
       .exec();
 
@@ -50,34 +56,51 @@ export async function GET(request: NextRequest) {
     const projectIds = allUserProjects.map((p) => p._id);
 
     // Search notes
-    const matchingNotes = await Note.find({
-      projectId: { $in: projectIds },
+    const noteFilter: any = {
       title: { $regex: q, $options: "i" },
-    })
+    };
+    if (projectId) {
+      noteFilter.projectId = projectId;
+    } else {
+      noteFilter.projectId = { $in: projectIds };
+    }
+    const matchingNotes = await Note.find(noteFilter)
       .limit(10)
       .exec();
 
     // Search documents
-    const matchingDocs = await DocumentModel.find({
+    const docFilter: any = {
       userId,
       title: { $regex: q, $options: "i" },
-    })
+    };
+    if (projectId) {
+      docFilter.projectId = projectId;
+    }
+    const matchingDocs = await DocumentModel.find(docFilter)
       .limit(10)
       .exec();
 
     // Search passwords
-    const matchingPasswords = await Password.find({
+    const passwordFilter: any = {
       userId,
       label: { $regex: q, $options: "i" },
-    })
+    };
+    if (projectId) {
+      passwordFilter.projectId = projectId;
+    }
+    const matchingPasswords = await Password.find(passwordFilter)
       .limit(10)
       .exec();
 
     // Search calendar events
-    const matchingEvents = await CalendarEvent.find({
+    const eventFilter: any = {
       userId,
       title: { $regex: q, $options: "i" },
-    })
+    };
+    if (projectId) {
+      eventFilter.projectId = projectId;
+    }
+    const matchingEvents = await CalendarEvent.find(eventFilter)
       .limit(10)
       .exec();
 

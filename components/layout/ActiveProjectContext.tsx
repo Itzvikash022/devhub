@@ -9,6 +9,7 @@ import {
   useMemo,
   ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 import { useProjectsList } from "@/hooks/useProjects";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -46,6 +47,7 @@ const ActiveProjectContext = createContext<ActiveProjectContextValue>({
 
 export function ActiveProjectProvider({ children }: { children: ReactNode }) {
   const { data: rawProjects = [] } = useProjectsList();
+  const router = useRouter();
 
   const projects = useMemo(
     () =>
@@ -55,16 +57,20 @@ export function ActiveProjectProvider({ children }: { children: ReactNode }) {
     [rawProjects]
   );
 
+  const [activeProjectId, setActiveProjectIdState] = useState<string | null>(null);
+
   // Restore from localStorage on mount
-  const [activeProjectId, setActiveProjectIdState] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem(STORAGE_KEY) ?? null;
-  });
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      setActiveProjectIdState(saved);
+    }
+  }, []);
 
   // When projects load, validate the persisted id still exists
   useEffect(() => {
-    if (projects.length === 0) return;
-    if (activeProjectId && !projects.find((p) => p._id === activeProjectId)) {
+    if (projects.length === 0 || !activeProjectId) return;
+    if (!projects.find((p) => p._id === activeProjectId)) {
       // Project was deleted or archived — clear stale context
       localStorage.removeItem(STORAGE_KEY);
       setActiveProjectIdState(null);
@@ -78,7 +84,8 @@ export function ActiveProjectProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem(STORAGE_KEY);
     }
     setActiveProjectIdState(id);
-  }, []);
+    router.push("/");
+  }, [router]);
 
   const clearActiveProject = useCallback(() => setActiveProject(null), [setActiveProject]);
 

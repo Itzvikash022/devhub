@@ -21,6 +21,7 @@ import {
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/constants/routes.constants";
 import { formatDate } from "@/utils/formatDate";
+import { useActiveProject } from "@/components/layout/ActiveProjectContext";
 
 interface SearchCommandProps {
   open: boolean;
@@ -83,6 +84,7 @@ const PAGES = [
 
 export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
   const router = useRouter();
+  const { activeProjectId } = useActiveProject();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [results, setResults] = useState<SearchResults | null>(null);
@@ -117,7 +119,10 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
     }
 
     setIsLoading(true);
-    fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}`)
+    const url = `/api/search?q=${encodeURIComponent(debouncedQuery)}${
+      activeProjectId ? `&projectId=${activeProjectId}` : ""
+    }`;
+    fetch(url)
       .then((res) => res.json())
       .then((resJson) => {
         if (resJson.success) {

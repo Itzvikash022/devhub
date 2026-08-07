@@ -67,11 +67,12 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return json.data;
 }
 
-export function useDashboardData() {
+export function useDashboardData(projectId?: string | null) {
   return useQuery<DashboardData, ApiError>({
-    queryKey: ["dashboard-data"],
+    queryKey: projectId ? ["dashboard-data", projectId] : ["dashboard-data"],
     queryFn: async () => {
-      const res = await fetch("/api/dashboard");
+      const url = projectId ? `/api/dashboard?projectId=${projectId}` : "/api/dashboard";
+      const res = await fetch(url);
       return handleResponse<DashboardData>(res);
     },
   });

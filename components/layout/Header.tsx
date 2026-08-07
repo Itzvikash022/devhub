@@ -31,10 +31,18 @@ function ProjectPicker() {
   return (
     <div ref={ref} className="relative flex-shrink-0">
       {/* Trigger button */}
-      <button
+      <div
         onClick={() => setOpen((v) => !v)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setOpen((v) => !v);
+          }
+        }}
+        tabIndex={0}
+        role="button"
         className={cn(
-          "flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium transition-all outline-none",
+          "flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium transition-all outline-none cursor-pointer select-none",
           isProjectMode
             ? "border-primary/40 bg-primary/8 text-primary"
             : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/30"
@@ -66,7 +74,7 @@ function ProjectPicker() {
         ) : (
           <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
         )}
-      </button>
+      </div>
 
       {/* Dropdown */}
       {open && (

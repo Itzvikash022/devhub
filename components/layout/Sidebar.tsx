@@ -16,6 +16,12 @@ import {
   ChevronRight,
   ChevronLeft,
   Code2,
+  NotebookPen,
+  Info,
+  CheckSquare,
+  GitBranch,
+  Globe,
+  ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/constants/routes.constants";
@@ -23,6 +29,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { useProjectsList } from "@/hooks/useProjects";
+import { useActiveProject } from "./ActiveProjectContext";
 
 interface NavItem {
   label: string;
@@ -36,13 +44,12 @@ interface SidebarProject {
   status: "active" | "on-hold" | "archived";
 }
 
-import { useProjectsList } from "@/hooks/useProjects";
-
 interface SidebarProps {
   userName?: string;
   userEmail?: string;
 }
 
+// ─── Global mode nav items ─────────────────────────────────────────────────────
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard },
   { label: "Projects", href: ROUTES.PROJECTS, icon: FolderOpen },
@@ -62,6 +69,20 @@ const TOOLS_ITEMS: NavItem[] = [
   { label: "Whiteboard", href: ROUTES.TOOLS_WHITEBOARD, icon: PenTool },
 ];
 
+// ─── Project mode nav builder ──────────────────────────────────────────────────
+function getProjectNavItems(projectId: string): NavItem[] {
+  return [
+    { label: "Notes", href: ROUTES.PROJECT_NOTES(projectId), icon: NotebookPen },
+    { label: "Details", href: ROUTES.PROJECT_DETAILS(projectId), icon: Info },
+    { label: "Progress", href: ROUTES.PROJECT_PROGRESS(projectId), icon: CheckSquare },
+    { label: "Pipeline", href: ROUTES.PROJECT_PIPELINE(projectId), icon: GitBranch },
+    { label: "Images", href: ROUTES.PROJECT_IMAGES(projectId), icon: ImageIcon },
+    { label: "Passwords", href: ROUTES.PROJECT_PASSWORDS(projectId), icon: KeyRound },
+    { label: "Documents", href: ROUTES.PROJECT_DOCUMENTS(projectId), icon: FileText },
+    { label: "Calendar", href: ROUTES.PROJECT_CALENDAR(projectId), icon: Calendar },
+  ];
+}
+
 const STATUS_COLORS: Record<string, string> = {
   active: "bg-emerald-400",
   "on-hold": "bg-amber-400",
@@ -77,10 +98,13 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
+
 export function Sidebar({ userName = "User", userEmail = "" }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const { data: dbProjects = [] } = useProjectsList();
+  const { activeProjectId, activeProject, clearActiveProject } = useActiveProject();
 
   const activeProjects = [...dbProjects]
     .filter((p) => p.status !== "archived")
@@ -88,13 +112,16 @@ export function Sidebar({ userName = "User", userEmail = "" }: SidebarProps) {
     .map((p) => ({
       id: p._id,
       name: p.name,
-      status: p.status,
+      status: p.status as SidebarProject["status"],
     }));
 
   function isActive(href: string): boolean {
     if (href === ROUTES.DASHBOARD) return pathname === href;
     return pathname.startsWith(href);
   }
+
+  // Project mode nav items
+  const projectNavItems = activeProjectId ? getProjectNavItems(activeProjectId) : [];
 
   return (
     <aside
@@ -128,73 +155,70 @@ export function Sidebar({ userName = "User", userEmail = "" }: SidebarProps) {
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="space-y-4 px-2 py-2">
-          {/* Navigation */}
-          <section>
-            {!collapsed && (
-              <p className="mb-1 px-2 text-[10px] font-medium tracking-widest text-[oklch(0.4_0.005_240)] uppercase">
-                Navigation
-              </p>
-            )}
-            <nav className="space-y-0.5">
-              {NAV_ITEMS.map((item) => (
-                <SidebarNavItem
-                  key={item.href}
-                  item={item}
-                  active={isActive(item.href)}
-                  collapsed={collapsed}
-                />
-              ))}
-            </nav>
-          </section>
-
-          {/* Recently Updated Projects */}
-          <section>
-            {!collapsed && (
-              <div className="mb-1 flex items-center justify-between px-2">
-                <Link
-                  href={ROUTES.PROJECTS}
-                  className="flex items-center gap-1 text-[10px] font-medium tracking-widest text-[oklch(0.4_0.005_240)] uppercase hover:text-[oklch(0.7_0.005_240)] transition-colors"
-                  title="View all projects"
+        {activeProjectId && activeProject ? (
+          // ── PROJECT MODE ────────────────────────────────────────────────────
+          <div className="space-y-1 px-2 py-2">
+            {/* Back to Global button */}
+            <div className="mb-2">
+              {collapsed ? (
+                <Tooltip>
+                  <TooltipTrigger className="block w-full">
+                    <button
+                      onClick={clearActiveProject}
+                      className="flex w-full items-center justify-center rounded-md px-2 py-1.5 text-[oklch(0.5_0.008_240)] transition-colors hover:bg-[oklch(0.22_0.01_240)] hover:text-[oklch(0.75_0.005_240)]"
+                    >
+                      <Globe className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Back to Global</TooltipContent>
+                </Tooltip>
+              ) : (
+                <button
+                  onClick={clearActiveProject}
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-[oklch(0.5_0.008_240)] transition-colors hover:bg-[oklch(0.22_0.01_240)] hover:text-[oklch(0.75_0.005_240)]"
                 >
-                  Recently Updated
-                  <ChevronRight className="h-3 w-3" />
-                </Link>
+                  <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">Back to Global</span>
+                </button>
+              )}
+            </div>
+
+            {/* Project name header */}
+            {!collapsed && (
+              <div className="mb-2 px-2">
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={cn(
+                      "h-1.5 w-1.5 shrink-0 rounded-full",
+                      STATUS_COLORS[activeProject.status] ?? "bg-zinc-500"
+                    )}
+                  />
+                  <p className="truncate text-[11px] font-semibold text-[oklch(0.75_0.005_240)]">
+                    {activeProject.name}
+                  </p>
+                </div>
+                <p className="mt-0.5 px-3 text-[9px] font-medium uppercase tracking-widest text-[oklch(0.35_0.005_240)]">
+                  Project Workspace
+                </p>
               </div>
             )}
-            <nav className="space-y-0.5">
-              {activeProjects.slice(0, 5).map((project) => (
-                <SidebarProjectItem
-                  key={project.id}
-                  project={project}
-                  active={pathname.startsWith(ROUTES.PROJECT(project.id))}
-                  collapsed={collapsed}
-                />
-              ))}
-            </nav>
-          </section>
 
-          {/* Vault */}
-          <section>
-            {!collapsed && (
-              <p className="mb-1 px-2 text-[10px] font-medium tracking-widest text-[oklch(0.4_0.005_240)] uppercase">
-                Vault
-              </p>
-            )}
+            {/* Project nav items */}
             <nav className="space-y-0.5">
-              {VAULT_ITEMS.map((item) => (
+              {projectNavItems.map((item) => (
                 <SidebarNavItem
                   key={item.href}
                   item={item}
-                  active={isActive(item.href)}
+                  active={pathname.startsWith(item.href)}
                   collapsed={collapsed}
                 />
               ))}
             </nav>
-          </section>
 
-          {/* Tools */}
-          <section>
+            {/* Divider */}
+            <Separator className="my-2 bg-[oklch(0.22_0.008_240)]" />
+
+            {/* Tools section (always available) */}
             {!collapsed && (
               <p className="mb-1 px-2 text-[10px] font-medium tracking-widest text-[oklch(0.4_0.005_240)] uppercase">
                 Tools
@@ -210,8 +234,94 @@ export function Sidebar({ userName = "User", userEmail = "" }: SidebarProps) {
                 />
               ))}
             </nav>
-          </section>
-        </div>
+          </div>
+        ) : (
+          // ── GLOBAL MODE (existing layout unchanged) ─────────────────────────
+          <div className="space-y-4 px-2 py-2">
+            {/* Navigation */}
+            <section>
+              {!collapsed && (
+                <p className="mb-1 px-2 text-[10px] font-medium tracking-widest text-[oklch(0.4_0.005_240)] uppercase">
+                  Navigation
+                </p>
+              )}
+              <nav className="space-y-0.5">
+                {NAV_ITEMS.map((item) => (
+                  <SidebarNavItem
+                    key={item.href}
+                    item={item}
+                    active={isActive(item.href)}
+                    collapsed={collapsed}
+                  />
+                ))}
+              </nav>
+            </section>
+
+            {/* Recently Updated Projects */}
+            <section>
+              {!collapsed && (
+                <div className="mb-1 flex items-center justify-between px-2">
+                  <Link
+                    href={ROUTES.PROJECTS}
+                    className="flex items-center gap-1 text-[10px] font-medium tracking-widest text-[oklch(0.4_0.005_240)] uppercase hover:text-[oklch(0.7_0.005_240)] transition-colors"
+                    title="View all projects"
+                  >
+                    Recently Updated
+                    <ChevronRight className="h-3 w-3" />
+                  </Link>
+                </div>
+              )}
+              <nav className="space-y-0.5">
+                {activeProjects.slice(0, 5).map((project) => (
+                  <SidebarProjectItem
+                    key={project.id}
+                    project={project}
+                    active={pathname.startsWith(ROUTES.PROJECT(project.id))}
+                    collapsed={collapsed}
+                  />
+                ))}
+              </nav>
+            </section>
+
+            {/* Vault */}
+            <section>
+              {!collapsed && (
+                <p className="mb-1 px-2 text-[10px] font-medium tracking-widest text-[oklch(0.4_0.005_240)] uppercase">
+                  Vault
+                </p>
+              )}
+              <nav className="space-y-0.5">
+                {VAULT_ITEMS.map((item) => (
+                  <SidebarNavItem
+                    key={item.href}
+                    item={item}
+                    active={isActive(item.href)}
+                    collapsed={collapsed}
+                  />
+                ))}
+              </nav>
+            </section>
+
+            {/* Tools */}
+            <section>
+              {!collapsed && (
+                <p className="mb-1 px-2 text-[10px] font-medium tracking-widest text-[oklch(0.4_0.005_240)] uppercase">
+                  Tools
+                </p>
+              )}
+              <nav className="space-y-0.5">
+                {TOOLS_ITEMS.map((item) => (
+                  <SidebarNavItem
+                    key={item.href}
+                    item={item}
+                    active={isActive(item.href)}
+                    collapsed={collapsed}
+                  />
+                ))}
+              </nav>
+            </section>
+          </div>
+        )}
       </ScrollArea>
 
       {/* User profile */}
@@ -339,7 +449,7 @@ function SidebarNavItem({
   return linkEl;
 }
 
-// ─── Project Item ─────────────────────────────────────────────────────────────
+// ─── Project Item (global mode sidebar shortcut) ──────────────────────────────
 
 function SidebarProjectItem({
   project,

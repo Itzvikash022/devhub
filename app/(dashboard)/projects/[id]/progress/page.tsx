@@ -75,28 +75,25 @@ function buildCSV(tasks: TaskData[]): string {
 }
 
 function buildMarkdown(tasks: TaskData[]): string {
-  return (
-    "# Tasks Export\n\n" +
-    tasks
-      .map((task, idx) => {
-        const statusBox = task.status === "done" ? "[x]" : "[ ]";
-        const dueText = task.dueDate ? format(new Date(task.dueDate), "yyyy-MM-dd") : "N/A";
-        let md = `## ${idx + 1}. ${statusBox} ${task.title}\n`;
-        md += `- **Status:** ${task.status.toUpperCase()}\n`;
-        md += `- **Priority:** ${task.priority.toUpperCase()}\n`;
-        md += `- **Due Date:** ${dueText}\n\n`;
-        if (task.description) md += `### Description\n${task.description}\n\n`;
-        if (task.comments?.length) {
-          md += `### Comments\n`;
-          task.comments.forEach((c) => {
-            md += `- *${c.userName}* (${format(new Date(c.createdAt), "yyyy-MM-dd HH:mm")}): ${c.text}\n`;
-          });
-          md += "\n";
-        }
-        return md + "---\n";
-      })
-      .join("\n")
-  );
+  return tasks
+    .map((task, idx) => {
+      const statusBox = task.status === "done" ? "[x]" : "[ ]";
+      const dueText = task.dueDate ? format(new Date(task.dueDate), "yyyy-MM-dd") : "N/A";
+      let md = `## ${idx + 1}. ${statusBox} ${task.title}\n`;
+      md += `- **Status:** ${task.status.toUpperCase()}\n`;
+      md += `- **Priority:** ${task.priority.toUpperCase()}\n`;
+      md += `- **Due Date:** ${dueText}\n\n`;
+      if (task.description) md += `### Description\n${task.description}\n\n`;
+      if (task.comments?.length) {
+        md += `### Comments\n`;
+        task.comments.forEach((c) => {
+          md += `- *${c.userName}* (${format(new Date(c.createdAt), "yyyy-MM-dd HH:mm")}): ${c.text}\n`;
+        });
+        md += "\n";
+      }
+      return md + "---\n";
+    })
+    .join("\n");
 }
 
 function buildPreviewText(tasks: TaskData[]): string {
@@ -261,7 +258,7 @@ export default function ProgressTab() {
 
   // Filter / sort state
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("todo");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("dueDate-asc");
 
@@ -533,33 +530,6 @@ export default function ProgressTab() {
                 {selectedForExport.size} task{selectedForExport.size !== 1 ? "s" : ""} selected for export
               </span>
               <div className="flex items-center gap-2 ml-auto">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleOpenPreview}
-                  className="h-7 text-xs px-2.5 border-border"
-                >
-                  <Eye className="h-3.5 w-3.5 mr-1.5" /> Preview &amp; Copy
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleExportCSV}
-                  className="h-7 text-xs px-2.5 border-border"
-                >
-                  <Download className="h-3.5 w-3.5 mr-1.5" /> CSV
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleExportMarkdown}
-                  className="h-7 text-xs px-2.5 border-border"
-                >
-                  <Download className="h-3.5 w-3.5 mr-1.5" /> Markdown
-                </Button>
                 <button
                   type="button"
                   onClick={clearSelection}

@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { getDisplayUrl } from "@/lib/utils";
 
 interface ImageVaultViewProps {
   projectId?: string;
@@ -578,7 +579,7 @@ export function ImageVaultView({ projectId }: ImageVaultViewProps) {
                         />
                       ) : image.thumbnail ? (
                         <img
-                          src={image.thumbnail}
+                          src={getDisplayUrl(image.thumbnail)}
                           alt={image.name}
                           className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                           loading="lazy"

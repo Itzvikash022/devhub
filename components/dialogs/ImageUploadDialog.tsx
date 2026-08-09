@@ -198,6 +198,17 @@ export function ImageUploadDialog({ open, onOpenChange, projectId }: ImageUpload
 
     setIsUploading(true);
 
+    const completedUploads: Array<{
+      r2Key: string;
+      name: string;
+      category: "mockup" | "screenshot" | "architecture" | "asset" | "other";
+      description: string;
+      file: File;
+      width?: number;
+      height?: number;
+      thumbnail?: string;
+    }> = [];
+
     try {
       // 1. Get presigned URLs for all batch files
       const presignResponse = await presignBatch({
@@ -233,14 +244,25 @@ export function ImageUploadDialog({ open, onOpenChange, projectId }: ImageUpload
       const runNext = async () => {
         if (todo.length === 0 && activeCount === 0) {
           // All done! Run confirmation step
-          await finalizeConfirmation();
+          await finalizeConfirmation(completedUploads);
           return;
         }
 
         while (activeCount < MAX_CONCURRENT && todo.length > 0) {
           const item = todo.shift()!;
           activeCount++;
-          uploadSingleItem(item)
+          uploadSingleItem(item, (r2Key, width, height, thumbnail) => {
+            completedUploads.push({
+              r2Key,
+              name: item.name,
+              category: (item.category as "mockup" | "screenshot" | "architecture" | "asset" | "other") || "mockup",
+              description: item.description,
+              file: item.file,
+              width,
+              height,
+              thumbnail,
+            });
+          })
             .catch((err) => {
               console.error("Item upload failure:", err);
             })
@@ -259,7 +281,10 @@ export function ImageUploadDialog({ open, onOpenChange, projectId }: ImageUpload
     }
   };
 
-  const uploadSingleItem = async (item: QueueItem): Promise<void> => {
+  const uploadSingleItem = async (
+    item: QueueItem,
+    onSuccessCallback: (r2Key: string, width?: number, height?: number, thumbnail?: string) => void
+  ): Promise<void> => {
     updateItem(item.id, {
       status: "uploading",
       progress: 0,
@@ -301,6 +326,7 @@ export function ImageUploadDialog({ open, onOpenChange, projectId }: ImageUpload
               r2Key: item.r2Key,
               uploadUrl: item.uploadUrl,
             });
+            onSuccessCallback(item.r2Key!, width ?? undefined, height ?? undefined, thumbnail ?? undefined);
             resolve();
           } else {
             updateItem(item.id, {
@@ -336,11 +362,18 @@ export function ImageUploadDialog({ open, onOpenChange, projectId }: ImageUpload
     }
   };
 
-  const finalizeConfirmation = async () => {
-    // Read the latest state from ref to avoid closures
-    const latestQueue = queueRef.current;
-    const completed = latestQueue.filter((item) => item.status === "completed" && item.r2Key);
-
+  const finalizeConfirmation = async (
+    completed: Array<{
+      r2Key: string;
+      name: string;
+      category: "mockup" | "screenshot" | "architecture" | "asset" | "other";
+      description: string;
+      file: File;
+      width?: number;
+      height?: number;
+      thumbnail?: string;
+    }>
+  ) => {
     if (completed.length === 0) {
       toast.error("No files successfully uploaded to R2.");
       setIsUploading(false);
@@ -349,7 +382,7 @@ export function ImageUploadDialog({ open, onOpenChange, projectId }: ImageUpload
 
     try {
       const confirmItems = completed.map((item) => ({
-        r2Key: item.r2Key!,
+        r2Key: item.r2Key,
         name: item.name,
         category: item.category,
         description: item.description,
@@ -373,7 +406,10 @@ export function ImageUploadDialog({ open, onOpenChange, projectId }: ImageUpload
       toast.error("Failed to register images in database.");
       // Mark those completed items back to failed
       completed.forEach((item) => {
-        updateItem(item.id, { status: "failed", errorMsg: "DB Save Failed" });
+        const matched = queue.find((q) => q.file.name === item.file.name);
+        if (matched) {
+          updateItem(matched.id, { status: "failed", errorMsg: "DB Save Failed" });
+        }
       });
     } finally {
       setIsUploading(false);

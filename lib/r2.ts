@@ -22,13 +22,11 @@ const r2Client = new S3Client({
   },
 });
 
-let corsConfigured = false;
-
 /**
  * Automatically configures standard CORS rules on the R2 bucket to prevent preflight blocks.
+ * Fire-and-forget: never throws, never blocks presigned URL generation.
  */
 export async function ensureBucketCors(): Promise<void> {
-  if (corsConfigured) return;
   try {
     const command = new PutBucketCorsCommand({
       Bucket: BUCKET_NAME,
@@ -45,10 +43,8 @@ export async function ensureBucketCors(): Promise<void> {
       },
     });
     await r2Client.send(command);
-    corsConfigured = true;
-    console.log("Cloudflare R2 CORS configured successfully.");
-  } catch (error) {
-    console.error("Failed to automatically configure R2 CORS:", error);
+  } catch {
+    // CORS config is best-effort — do not block uploads if this fails
   }
 }
 
@@ -57,7 +53,8 @@ export async function ensureBucketCors(): Promise<void> {
  * This bypasses the Next.js server for large files.
  */
 export async function generatePresignedUploadUrl(key: string, mimeType: string): Promise<string> {
-  await ensureBucketCors();
+  // Fire-and-forget CORS setup — doesn't block
+  ensureBucketCors().catch(() => {});
 
   const command = new PutObjectCommand({
     Bucket: BUCKET_NAME,

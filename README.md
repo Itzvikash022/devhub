@@ -218,84 +218,39 @@ When a task with a due date is created or updated, the service layer automatical
 ## Patch Notes
 
 ### v2.4.3 — New Task Status: "Ready for Test"
-- **"Ready for Test" Status**: Introduced `ready-for-test` as a first-class task status across backend schemas, Mongoose database models, task dialog creation/edit forms, status filters, and status badges.
-- Configured a distinct sky blue (`#0284C7`) status dot indicator for items in the testing stage.
+- Added **"Ready for Test"** as a task status across validation schemas, models, filters, task dialogs, and UI badges.
 
-### v2.4.2 — Progress Tracker Right-Click Context Menu
-- **Task Row Context Menu**: Right-clicking any row in the Progress Tracker now opens a native-style context menu with two quick actions:
-  - **Copy Task** — Copies a formatted text summary of the item (ID badge, title, type, status, priority, due date, and description) to the clipboard.
-  - **Mark as Done** — Instantly patches the task status to `done` without opening the edit dialog. Disabled with a visual cue when the item is already completed.
-- Context menu closes on any outside click or by right-clicking away from the row.
+### v2.4.2 — Progress Tracker Context Menu
+- Added right-click context menu on task rows with **Copy Task** and **Mark as Done** quick actions.
 
-### v2.4.1 — Image Vault Production Hotfix
-- **R2 URL Proxy Coverage**: Expanded `getDisplayUrl` utility to intercept and proxy all Cloudflare R2 public URL patterns (`.r2.dev/`, `.r2.cloudflarestorage.com/`, and placeholder domains) through the secure `/api/r2-proxy` backend endpoint — previously only the local placeholder domain was caught, causing images to fail in the deployed environment.
-- **Image Vault Thumbnail Rendering**: Fixed `ImageVaultView` to run thumbnails through `getDisplayUrl` instead of rendering raw database URLs directly, restoring visibility of all pre-existing images in production.
-- **Upload Queue Race Condition Fix**: Replaced the async React state queue lookup (`queueRef.current`) at batch completion with a synchronous local `completedUploads` array populated directly from the XHR `onload` success callback, eliminating the production-only timing issue where uploaded files landed in R2 but were never registered in the database.
-- **Non-blocking CORS Setup**: Made `ensureBucketCors()` fully fire-and-forget in `r2.ts` — CORS configuration failure on Vercel (e.g. permission restrictions) no longer blocks or silently breaks presigned URL generation.
+### v2.4.1 — Image Vault Production Fixes
+- Fixed Cloudflare R2 image URL proxying and thumbnail rendering in the deployed environment.
+- Fixed upload queue race condition and made CORS setup non-blocking.
 
-### v2.4.0 — Unified Progress Tracker, Bug Management Infrastructure, Left ID Badges, and Image Vault Integration
-- **Unified Progress Tracker**: Consolidated Tasks and Bugs into a single generalized Progress board, eliminating the redundant Bugs tab navigation and standalone bugs page route.
-- **Bug System & Cloudflare R2 Infrastructure**: 
-  - **Local R2 Media Proxy (`route.ts`)**: Built a secure API stream route that fetches and streams attachments from Cloudflare R2 directly, avoiding browser DNS/public URL resolution limits.
-  - **Automated R2 Daily Cleanup Cron**: Created a Vercel Cron-triggered routine that queries tasks/bugs closed for over 30 days, purges their screenshots from R2, and clears database metadata.
-  - **Immediate R2 Resource Release**: Wired task and project deletion handlers to purge screenshot directories from R2 instantly, preventing orphaned storage files.
-  - **Task Screenshot Zoom Previews**: Integrated click-to-preview overlay panels with zoom and pan support.
-- **Far-Left ID Badge Column**: Added a far-left monospace identifier column mapping unique IDs (`T-0001` in violet and `B-0002` in red) to cleanly distinguish items. Removed inline ID prefixes from task titles.
-- **Dual Creation Action Buttons**: Split creation triggers at the top of the Progress tab into separate primary buttons: `+ New Task` (violet theme) and `+ New Bug` (red/crimson theme) to open the modal pre-configured.
-- **General Counter & Auto-Backfill**: Integrated a shared sequential counter (`bugNumber`) for both tasks and bugs. Implemented a database backfill check upon project retrieval to automatically populate serial IDs on older legacy tasks.
-- **Select from Image Vault**: Added a "Select from Vault" overlay selector to task screenshot fields, allowing users to query, search, and import unencrypted pre-uploaded images from the project gallery without double uploading.
-- **Dialog Height Scrollbar Fixes**: Resolved vertical viewport overflow and cut-off buttons in the Image Vault selector and Export Preview modals by shifting them to scroll-bounded vertical flex wrappers.
-- **No Area/Screenshot Empty State**: Rendered a placeholder text: *"No area module or screenshots provided."* inside the left details card of the expanded progress row when no module or screenshots are attached.
+### v2.4.0 — Unified Progress Tracker & Bug Infrastructure
+- Unified Tasks and Bugs into a single Progress board with custom ID badges (`T-xxxx` / `B-xxxx`) and separate creation triggers.
+- Added R2 media proxy, automated daily cleanup cron, immediate resource deletion, screenshot zoom previews, and "Select from Vault" picker.
 
-### v2.3.0 — Sidebar Reorganization, Project-Scoped Scoping & Bug Fixes
-- **Sidebar Project-Specific Layout**: Reorganized project mode sidebar items into dedicated Navigation and Vault sections, matching the Global Mode design layout for a consistent and premium user experience.
-- **Dashboard Project Scoping**: Updated the dashboard API and page to scope activity, calendar deadlines, and high priority tasks to the currently active project workspace. Conditionally hid the global "Recent Projects" list and "+ New project" creation controls.
-- **Project-Specific Search**: Configured search queries to filter note, document, password, and calendar event results strictly to the selected project, eliminating cross-project search leakage.
-- **Header Project Picker Hydration Fix**: Solved Next.js hydration mismatch warning by shifting the reading of the active project context's localStorage key from state initialization to a post-mount client-side useEffect hook.
-- **DOM Nesting & Accessibility Fix**: Restructured the project switcher in the header to change the outer wrapper from a button to a div with role="button" and keyboard accessibility (tabIndex, Enter/Space key events), correcting HTML button-in-button nesting warning.
-- **Workspace Switcher Redirection**: Configured the project context selector to automatically redirect the user to the main dashboard page (`/`) on project selection switch, avoiding module-page context mismatches.
-- **SetPageHeader Action Propagation**: Fixed a bug where topbar header actions did not update dynamically when actions changed on the client by adding the `actions` element to the SetPageHeader component's useEffect dependency array.
-- **Dashboard Activity Feed Placeholder**: Added a "No activity yet." empty state message when a selected project has no recent dashboard activities.
+### v2.3.0 — Sidebar Reorganization & Workspace Scoping
+- Reorganized project sidebar layout matching global mode.
+- Scoped dashboard activity, search, and vaults strictly to active working project.
+- Fixed header switcher hydration mismatch and button nesting warnings.
 
-### v2.2.0 — Active Project Context (Site Flow), Task Selective Export, Password Import/Export Table, and Notes Editor Optimizations
-- **Active Project Context (Working Project Picker) (In Testing Mode)**: Introduced a "Working Project" dropdown in the header to filter the Password, Document, Calendar, and Image vaults to specific projects. In Project Mode, the navigation sidebar dynamically replaces the global view with a complete project-specific workspace sidebar (Notes, Details, Progress, Pipeline, Images, Passwords, Documents, Calendar) and adds a "Back to Global" toggle.
-- **Task Selective Export & Export Preview**: Repurposed task checkboxes for selective export scoping. Created a floating bulk actions toolbar and a full-height interactive Export Preview modal supporting copying formatted tasks as plain-text or Markdown to the clipboard instantly.
-- **Password CSV Import & Interactive Table Editor**: Integrated a spreadsheet CSV parser and an interactive table editor in the password import dialog, allowing cell modifications, row insertions/deletions, and validation of required fields prior to database persistence.
-- **Password-Protected & Multi-Scope Exports**: Added POST-based export authorization verified via the user's profile bcrypt password hash. Supports multi-selecting label/project scopes for downloading decrypted plain text CSV sheets.
-- **Copy-on-Click Credential Tooltips**: Enabled hover states to copy usernames and passwords to the clipboard. Password clicks securely invoke a background reveal API endpoint, decodes the AES-256-GCM ciphertext, and displays a floating "Copied!" notification.
-- **Image Vault Parallel Upload Queue & Thumbnail Compression**: Upgraded uploads to a parallel queue manager (concurrency 3) with dynamic progress bars. Compress uploaded screenshots and mockups client-side to max 300px WebP data URLs using canvas, saving R2 egress fees by serving thumbnails directly from the MongoDB document layer.
-- **Notes Editor Double-Click & Auto-Save**: Refactored notes to auto-save title/content in the background on click-outside or Escape. Enabled editing via double-clicking. Prevents block editor errors on raw HTML snippets by routing them to a raw tabbed editor workspace.
-- **Workspace Navigation loading.tsx Boundary**: Implemented a global workspace route loader boundary featuring a spinning Lucide loader and pulse animation for smooth page transitions.
-- **TanStack Query Cache Tuning**: Tuned query defaults to 10-minute fresh states and 15-minute garbage collection. Added cache invalidations on all dashboard metrics when tasks, projects, calendar events, documents, or notes are changed.
-- **Document Vault Zoom & Format Whitelist**: Expanded allowed file types to support CSV, JSON, YAML, log, xlsx, and SVG, and integrated browser extension MIME-type fallbacks. Configured PDF previews to fit horizontal dimensions and stretch to fill the viewport height.
-- **Cleanup and Assignee Removal**: Removed unused assignee properties across task schemas, database models, dashboard widgets, and UI tables to simplify workflow tracking.
+### v2.2.0 — Active Project Context, Task Export & Password Import/Export
+- Introduced Working Project dropdown in header to filter all vaults by project.
+- Added selective task export with interactive Export Preview modal.
+- Added password CSV import/export table editor, password-protected export, and copy-on-click credentials.
+- Added parallel image upload queue, WebP thumbnail compression, and notes editor auto-save.
 
-### v2.1.0 — Progress Tracker Redesign, Task Modals, Field Drag & Drop, Upload API, Next.js 16 Auth Proxy & Dynamic Titles
-- **Section Rearrange Drag Preview Centering**: Pinned the dragged section card preview's exact center directly under the cursor (`transform: translate(-50%, -50%)`) inside container-relative absolute bounds.
-- **Sidebar Recently Updated Section**: Renamed sidebar projects list to `RECENTLY UPDATED` with direct header link (`/projects`), displaying top 5 most recently active projects (`updatedAt` descending).
-- **Auto-Touch Project Timestamp Triggers**: Added `ProjectService.touch(projectId)` across all Task, Note, Details, Pipeline, Image, Document, and Password create/edit/delete operations to keep project activity timestamps fresh.
-- **Dynamic Browser Tab Titles**: Added dynamic `document.title` updates across all pages (`<Project Name> - DevHub`, `Doc Vault - DevHub`, `Whiteboard - DevHub`, `MD Preview - DevHub`, etc.) with async loading guard to prevent title flickering.
-- **Next.js 16 Proxy Authentication (`proxy.ts`)**: Migrated middleware to Next.js 16's official `proxy.ts` convention with silent refresh token fallback in `getSession()`.
-- **Image & Document Upload API**: Built server-side `FormData` streaming upload endpoints for Cloudflare R2 (`/api/documents/upload` & `/api/projects/[id]/images/upload`) to eliminate browser CORS preflight restrictions.
-- **In-Section Field Drag & Drop**: Implemented native HTML5 drag-and-drop field reordering inside custom section cards in Edit Mode.
-- **Task Table Layout & Text Wrapping**: Applied `table-fixed` layout, established strict column widths, and enforced `break-all` wrapping for long task titles to prevent cell displacement.
-- **Full-Width Expanded Task View**: Expanded task description and comment rows to span all 7 columns of the progress table matching mockup specs.
-- **Edit Task Modal 2-Section Redesign**: Refactored `TaskDialog` into a clean 2-column layout with isolated right-side comments panel and real-time live query updates.
+### v2.1.0 — Progress Tracker Redesign & Next.js 16 Auth Proxy
+- Redesigned Progress Tracker table layout with full-width expanded view and 2-column task dialog.
+- Added native drag-and-drop field reordering inside custom sections.
+- Migrated auth middleware to Next.js 16 `proxy.ts` convention and added dynamic browser tab titles.
 
-### v2.0.0 — Global Image Vault, Developer Tools Suite & Whiteboard Engine
-- **Global Image Vault**: Promoted Image Vault to a top-level sidebar route (`/images`) with global search, project filtering, and R2 uploads across all projects.
-- **Developer Tools Navigation**: Added a `TOOLS` section to the main navigation sidebar containing Markdown Previewer, HTML Previewer, JSON Formatter, and Whiteboard Canvas.
-- **Markdown & Mermaid Live Previewer**: Built split-screen `/tools/markdown` supporting GFM tables, code blocks, syntax highlighting, and live ```` ```mermaid ```` SVG flowchart rendering.
-- **HTML & CSS Sandbox**: Built split-screen `/tools/html` with live sandboxed `<iframe>` previewing for HTML5, inline CSS, and interactive JavaScript.
-- **JSON Formatter & Line Validator**: Built `/tools/json` for 2-space prettifying, minifying, copying, and real-time JSON syntax error validation.
-- **Excalidraw-like Whiteboard Canvas**: Built `/tools/whiteboard` featuring selection/resize handles, vector pen, line, arrow, rectangle (with rounded corners toggle), circle, text, eraser, and spacebar panning.
-- **Whiteboard Stroke & Fill Controls**: Added stroke color swatches, fill color swatches, stroke width selectors (`2px` - `8px`), and rectangle corner rounding toggle.
-- **Full Screen Preview Modals**: Added fullscreen expand modes for both HTML Sandbox and Markdown Previewer panes with z-50 overlay toggles.
-- **LocalStorage State Persistence**: Added automatic `localStorage` caching across Markdown, HTML, JSON, and Whiteboard tools to preserve user inputs across reloads.
-- **1:1 Offscreen Canvas Export Engine**: Added high-resolution **Export PNG** image download and native **Export PDF** document generation using `jsPDF`.
-- **UI Cleanup & Single Action Button**: Removed duplicate top-header buttons in Document Vault and Password Vault, leaving a single clean toolbar button.
-- **Notes Editor & ProseMirror Transaction Fix**: Integrated visual Notion-style editor with visual slash commands (`/`) and deferred state updates to prevent model sync errors.
-- **1:1 JS Masonry Layout Engine**: Built dynamic shortest-column layout engine for project details cards with grab cursor offset tracking in section reordering dialogs.
+### v2.0.0 — Global Image Vault & Developer Tools Suite
+- Promoted Image Vault to a top-level global route with project filtering.
+- Built Developer Tools suite: Markdown/Mermaid live previewer, HTML/CSS sandbox, JSON formatter/validator, and Whiteboard canvas with PNG/PDF export.
+- Cleaned up toolbar actions, notes editor transactions, and masonry layout engine.
 
 ---
 

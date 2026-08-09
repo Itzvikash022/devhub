@@ -217,6 +217,12 @@ When a task with a due date is created or updated, the service layer automatical
 
 ## Patch Notes
 
+### v2.4.1 — Image Vault Production Hotfix
+- **R2 URL Proxy Coverage**: Expanded `getDisplayUrl` utility to intercept and proxy all Cloudflare R2 public URL patterns (`.r2.dev/`, `.r2.cloudflarestorage.com/`, and placeholder domains) through the secure `/api/r2-proxy` backend endpoint — previously only the local placeholder domain was caught, causing images to fail in the deployed environment.
+- **Image Vault Thumbnail Rendering**: Fixed `ImageVaultView` to run thumbnails through `getDisplayUrl` instead of rendering raw database URLs directly, restoring visibility of all pre-existing images in production.
+- **Upload Queue Race Condition Fix**: Replaced the async React state queue lookup (`queueRef.current`) at batch completion with a synchronous local `completedUploads` array populated directly from the XHR `onload` success callback, eliminating the production-only timing issue where uploaded files landed in R2 but were never registered in the database.
+- **Non-blocking CORS Setup**: Made `ensureBucketCors()` fully fire-and-forget in `r2.ts` — CORS configuration failure on Vercel (e.g. permission restrictions) no longer blocks or silently breaks presigned URL generation.
+
 ### v2.4.0 — Unified Progress Tracker, Bug Management Infrastructure, Left ID Badges, and Image Vault Integration
 - **Unified Progress Tracker**: Consolidated Tasks and Bugs into a single generalized Progress board, eliminating the redundant Bugs tab navigation and standalone bugs page route.
 - **Bug System & Cloudflare R2 Infrastructure**: 

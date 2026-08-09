@@ -16,7 +16,8 @@ export class InvitationService {
     // 1. Verify project ownership (only owner can invite)
     const project = await ProjectService.getById(inviterId, projectId);
     
-    if (project.userId.toString() !== inviterId) {
+    const projectOwnerId = project.userId?._id?.toString() || project.userId?.toString();
+    if (projectOwnerId !== inviterId) {
       throw new Error("ONLY_OWNER_CAN_INVITE");
     }
 
@@ -81,9 +82,12 @@ export class InvitationService {
     }
 
     // Add user to project's sharedWith array
+    const inviterIdStr = (invitation.inviterId as any)._id?.toString() || invitation.inviterId.toString();
+    const projectIdStr = (invitation.projectId as any)._id?.toString() || invitation.projectId.toString();
+    
     await ProjectService.addSharedUser(
-      invitation.inviterId.toString(),
-      invitation.projectId._id.toString() || invitation.projectId.toString(),
+      inviterIdStr,
+      projectIdStr,
       userId
     );
 

@@ -7,6 +7,7 @@ import {
   useProjectCustomDetails,
   useUpdateProjectCustomDetails,
 } from "@/hooks/useProjects";
+import { useMe } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -113,6 +114,8 @@ export default function ProjectDetailsTab() {
   const [draggedField, setDraggedField] = useState<{ secIndex: number; fieldIndex: number } | null>(null);
   const [dragOverField, setDragOverField] = useState<{ secIndex: number; fieldIndex: number } | null>(null);
 
+  const { data: user } = useMe();
+
   // Queries & Mutations
   const {
     data: project,
@@ -129,6 +132,9 @@ export default function ProjectDetailsTab() {
 
   const isLoading = isProjectLoading || isDetailsLoading;
   const hasError = projectError || detailsError;
+
+  const projectOwnerId = project?.userId?._id || project?.userId;
+  const isOwner = user && projectOwnerId === user.userId;
 
   if (isLoading) {
     return (
@@ -612,15 +618,17 @@ export default function ProjectDetailsTab() {
                     <CardDescription>General workspace summary and details.</CardDescription>
                   </div>
                   <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShareDialogOpen(true)}
-                      className="h-8 gap-1 text-xs"
-                    >
-                      <Users className="h-3.5 w-3.5" />
-                      Share
-                    </Button>
+                    {isOwner && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShareDialogOpen(true)}
+                        className="h-8 gap-1 text-xs"
+                      >
+                        <Users className="h-3.5 w-3.5" />
+                        Share
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"

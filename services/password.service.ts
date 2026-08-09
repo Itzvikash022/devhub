@@ -20,14 +20,16 @@ export class PasswordService {
     // If it's a project password, and it's shared, verify project access
     if (password.projectId && password.isShared) {
       try {
-        await ProjectService.getById(userId, password.projectId.toString());
+        const projectIdStr = (password.projectId as any)._id?.toString() || password.projectId.toString();
+        await ProjectService.getById(userId, projectIdStr);
         return password; // User has access to the project and it's shared
       } catch (e) {
         // Fallback to direct ownership
       }
     }
 
-    if (password.userId.toString() !== userId) {
+    const ownerId = (password.userId as any)._id?.toString() || password.userId.toString();
+    if (ownerId !== userId) {
       throw new Error("FORBIDDEN");
     }
 

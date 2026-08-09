@@ -1,6 +1,7 @@
 import { connectToDatabase } from "@/lib/db";
 import { Project, IProjectDocument } from "@/models/Project";
 import { objectIdSchema } from "@/schemas/common.schema";
+import { User } from "@/models/User";
 import mongoose from "mongoose";
 
 export class ProjectRepository {
@@ -12,6 +13,8 @@ export class ProjectRepository {
     if (!parseResult.success) return null;
 
     await connectToDatabase();
+    // Ensure User model is loaded for populate
+    User;
     return Project.findById(id)
       .populate("userId", "name email")
       .populate("sharedWith", "name email")
@@ -38,6 +41,8 @@ export class ProjectRepository {
       query.status = filter.status;
     }
 
+    // Ensure User model is loaded for populate
+    User;
     // Sort active first, then on-hold, then archived. Within statuses, sort by name.
     return Project.find(query)
       .populate("userId", "name email")

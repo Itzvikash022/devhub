@@ -2,6 +2,7 @@ import { connectToDatabase } from "@/lib/db";
 import { ImageAsset, IImageAssetDocument } from "@/models/ImageAsset";
 import { objectIdSchema } from "@/schemas/common.schema";
 import mongoose from "mongoose";
+import { User } from "@/models/User";
 
 export class ImageAssetRepository {
   /**
@@ -12,6 +13,7 @@ export class ImageAssetRepository {
     if (!parseResult.success) return null;
 
     await connectToDatabase();
+    User; // Ensure model is loaded
     return ImageAsset.findById(id).populate("uploadedBy", "name email").exec();
   }
 
@@ -23,6 +25,7 @@ export class ImageAssetRepository {
     if (!parseResult.success) return [];
 
     await connectToDatabase();
+    User; // Ensure model is loaded
     return ImageAsset.find({ projectId: new mongoose.Types.ObjectId(projectId) })
       .populate("uploadedBy", "name email")
       .sort({ createdAt: -1 })
@@ -40,6 +43,7 @@ export class ImageAssetRepository {
       .filter((r) => r.success)
       .map((r) => new mongoose.Types.ObjectId(r.data));
 
+    User; // Ensure model is loaded
     return ImageAsset.find({ projectId: { $in: objectIds } })
       .populate("uploadedBy", "name email")
       .sort({ createdAt: -1 })

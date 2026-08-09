@@ -217,11 +217,17 @@ When a task with a due date is created or updated, the service layer automatical
 
 ## Patch Notes
 
-### v2.5.0 — Multi-User Collaboration & Role Assignments
-- Added project sharing and invitation system for team collaboration.
-- Implemented task assignment functionality with an "Assigned to me" filter on the Progress Tracker.
-- Introduced `isShared` toggle on Passwords, allowing credentials to be securely shared with project members.
-- Added comprehensive creator attribution metadata ("Created by", "Uploaded by") across Notes, Images, Documents, Pipeline, Calendar, and Project Details.
+### v2.5.1 — Collaboration Bug Fixes
+- Fixed Mongoose schema registration crashes across all APIs.
+- Fixed pending invitations query returning empty lists.
+- Fixed "Forbidden" errors when accepting invitations or sharing existing passwords.
+- Hid project "Share" button for non-owner members.
+
+### v2.5.0 — Multi-User Collaboration
+- Added project sharing via email invitations.
+- Added task assignment and "Assigned to me" Progress tracker filter.
+- Added creator attribution ("Created by", "Uploaded by") to all resources.
+- Added password sharing toggles.
 
 ### v2.4.3 — New Task Status: "Ready for Test"
 - Added **"Ready for Test"** as a task status across validation schemas, models, filters, task dialogs, and UI badges.

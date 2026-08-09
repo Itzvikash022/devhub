@@ -2,6 +2,7 @@ import { connectToDatabase } from "@/lib/db";
 import { ProjectInvitation, IProjectInvitationDocument } from "@/models/ProjectInvitation";
 import { objectIdSchema } from "@/schemas/common.schema";
 import mongoose from "mongoose";
+import { User } from "@/models/User";
 
 export class InvitationRepository {
   /**
@@ -18,7 +19,7 @@ export class InvitationRepository {
     const inv = new ProjectInvitation({
       projectId: new mongoose.Types.ObjectId(data.projectId),
       inviterId: new mongoose.Types.ObjectId(data.inviterId),
-      inviteeEmail: data.inviteeEmail.toLowerCase(),
+      email: data.inviteeEmail.toLowerCase(),
       role: data.role,
       status: data.status || "pending",
     });
@@ -33,6 +34,7 @@ export class InvitationRepository {
     if (!parseResult.success) return null;
 
     await connectToDatabase();
+    User; // Ensure model is loaded
     return ProjectInvitation.findById(id)
       .populate("projectId", "name description")
       .populate("inviterId", "name email")
@@ -44,8 +46,9 @@ export class InvitationRepository {
    */
   static async findPendingByEmail(email: string): Promise<IProjectInvitationDocument[]> {
     await connectToDatabase();
+    User; // Ensure model is loaded
     return ProjectInvitation.find({
-      inviteeEmail: email.toLowerCase(),
+      email: email.toLowerCase(),
       status: "pending",
     })
       .populate("projectId", "name description")
@@ -61,6 +64,7 @@ export class InvitationRepository {
     if (!parseResult.success) return [];
 
     await connectToDatabase();
+    User; // Ensure model is loaded
     return ProjectInvitation.find({
       projectId: new mongoose.Types.ObjectId(projectId),
     })

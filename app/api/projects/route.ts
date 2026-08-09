@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { ProjectService } from "@/services/project.service";
 import { createProjectSchema } from "@/schemas/project.schema";
@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
       })
     );
     return successResponse(projectsWithCounts);
-  } catch {
-    return internalErrorResponse();
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: { code: "INTERNAL_ERROR", message: error instanceof Error ? error.message : String(error) } }, { status: 500 });
   }
 }
 

@@ -319,10 +319,17 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
               <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col justify-between h-full md:pr-6 md:border-r md:border-border min-w-0">
                 <div className="space-y-4 overflow-y-auto pr-1 flex-1 min-h-0">
                   <DialogHeader className="space-y-0.5">
-                    <DialogTitle className="text-base">
-                      {taskType === "bug"
-                        ? `Bug Details (B-${String(task.bugNumber || 0).padStart(4, "0")})`
-                        : `Task Details (T-${String(task.bugNumber || 0).padStart(4, "0")})`}
+                    <DialogTitle className="text-base flex items-center justify-between">
+                      <span>
+                        {taskType === "bug"
+                          ? `Bug Details (B-${String(task.bugNumber || 0).padStart(4, "0")})`
+                          : `Task Details (T-${String(task.bugNumber || 0).padStart(4, "0")})`}
+                      </span>
+                      {task.createdBy && (
+                        <span className="text-xs font-normal text-muted-foreground mr-4">
+                          Created by: {task.createdBy.name || "Unknown"}
+                        </span>
+                      )}
                     </DialogTitle>
                     <DialogDescription className="text-xs">
                       Update details, status, priority, or other elements.
@@ -422,7 +429,7 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
                       </Field>
                     </div>
 
-                    <div className="md:col-span-2">
+                    <div>
                       <Field data-invalid={!!errors.dueDate}>
                         <FieldLabel htmlFor="dueDate" className="text-xs">Due Date</FieldLabel>
                         <Input
@@ -736,7 +743,7 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
                   </Field>
                 </div>
 
-                <div className="md:col-span-2">
+                <div>
                   <Field data-invalid={!!errors.dueDate}>
                     <FieldLabel htmlFor="dueDate">Due Date</FieldLabel>
                     <Input

@@ -2,6 +2,7 @@ import { connectToDatabase } from "@/lib/db";
 import { ProjectDetail, IProjectDetailDocument, IProjectSection } from "@/models/ProjectDetail";
 import { objectIdSchema } from "@/schemas/common.schema";
 import mongoose from "mongoose";
+import { User } from "@/models/User";
 
 export class ProjectDetailRepository {
   /**
@@ -12,6 +13,7 @@ export class ProjectDetailRepository {
     if (!parseResult.success) return null;
 
     await connectToDatabase();
+    User; // Ensure model is loaded
     return ProjectDetail.findOne({ projectId: new mongoose.Types.ObjectId(projectId) }).populate("createdBy", "name email").exec();
   }
 

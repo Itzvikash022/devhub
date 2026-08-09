@@ -2,6 +2,7 @@ import { connectToDatabase } from "@/lib/db";
 import { DocumentModel, IDocumentDocument } from "@/models/Document";
 import { objectIdSchema } from "@/schemas/common.schema";
 import mongoose from "mongoose";
+import { User } from "@/models/User";
 
 export class DocumentRepository {
   /**
@@ -12,6 +13,7 @@ export class DocumentRepository {
     if (!parseResult.success) return null;
 
     await connectToDatabase();
+    User; // Ensure model is loaded
     return DocumentModel.findById(id).populate("userId", "name email").exec();
   }
 
@@ -34,6 +36,7 @@ export class DocumentRepository {
     }
 
     await connectToDatabase();
+    User; // Ensure model is loaded
     return DocumentModel.find(query).populate("userId", "name email").sort({ createdAt: -1 }).exec();
   }
 

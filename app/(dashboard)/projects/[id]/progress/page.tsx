@@ -675,14 +675,6 @@ export default function ProgressTab() {
                                     {task.comments.length}
                                   </span>
                                 )}
-                                <div className="flex flex-wrap gap-2 text-[9px] text-muted-foreground font-mono">
-                                  {task.createdBy && (
-                                    <span>Created by: {task.createdBy.name || "Unknown"}</span>
-                                  )}
-                                  {task.assignedTo && (
-                                    <span>• Assigned to: {task.assignedTo.name || "Unknown"}</span>
-                                  )}
-                                </div>
                               </div>
                             </div>
                           </TableCell>

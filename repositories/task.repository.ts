@@ -2,6 +2,7 @@ import { connectToDatabase } from "@/lib/db";
 import { Task, ITaskDocument } from "@/models/Task";
 import { objectIdSchema } from "@/schemas/common.schema";
 import mongoose from "mongoose";
+import { User } from "@/models/User";
 
 export class TaskRepository {
   /**
@@ -12,6 +13,7 @@ export class TaskRepository {
     if (!parseResult.success) return null;
 
     await connectToDatabase();
+    User; // Ensure model is loaded
     return Task.findById(id)
       .populate("createdBy", "name email")
       .populate("assignedTo", "name email")
@@ -27,6 +29,7 @@ export class TaskRepository {
     if (!parseResult.success) return [];
 
     await connectToDatabase();
+    User; // Ensure model is loaded
     return Task.find({ projectId: new mongoose.Types.ObjectId(projectId) })
       .populate("createdBy", "name email")
       .populate("assignedTo", "name email")

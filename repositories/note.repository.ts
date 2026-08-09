@@ -2,6 +2,7 @@ import { connectToDatabase } from "@/lib/db";
 import { Note, INoteDocument } from "@/models/Note";
 import { objectIdSchema } from "@/schemas/common.schema";
 import mongoose from "mongoose";
+import { User } from "@/models/User";
 
 export class NoteRepository {
   /**
@@ -12,6 +13,7 @@ export class NoteRepository {
     if (!parseResult.success) return null;
 
     await connectToDatabase();
+    User; // Ensure model is loaded
     return Note.findById(id).populate("createdBy", "name email").exec();
   }
 
@@ -23,6 +25,7 @@ export class NoteRepository {
     if (!parseResult.success) return [];
 
     await connectToDatabase();
+    User; // Ensure model is loaded
     return Note.find({ projectId: new mongoose.Types.ObjectId(projectId) })
       .populate("createdBy", "name email")
       .sort({ order: 1 })

@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 
-type Status = "active" | "on-hold" | "archived" | "todo" | "in-progress" | "blocked" | "done";
+type Status = "active" | "on-hold" | "archived" | "todo" | "in-progress" | "blocked" | "ready-for-test" | "done";
 type Priority = "low" | "medium" | "high";
 
 const statusConfig: Record<Status, { label: string; dotClass: string }> = {
@@ -12,6 +12,7 @@ const statusConfig: Record<Status, { label: string; dotClass: string }> = {
   todo: { label: "todo", dotClass: "text-[#6B6E64]" },
   "in-progress": { label: "in-progress", dotClass: "text-[#4F46C7]" },
   blocked: { label: "blocked", dotClass: "text-[#B14B4B]" },
+  "ready-for-test": { label: "ready-for-test", dotClass: "text-[#0284C7]" },
   done: { label: "done", dotClass: "text-[#3F7A5C]" },
 };
 

@@ -9,7 +9,7 @@ export interface ITask {
   projectId: mongoose.Types.ObjectId;
   title: string;
   description: string;
-  status: "todo" | "in-progress" | "blocked" | "done";
+  status: "todo" | "in-progress" | "blocked" | "ready-for-test" | "done";
   priority: "low" | "medium" | "high";
   dueDate: Date | null;
   comments: IComment[];
@@ -58,8 +58,8 @@ const TaskSchema: Schema = new Schema<ITaskDocument>(
     status: {
       type: String,
       enum: {
-        values: ["todo", "in-progress", "blocked", "done"],
-        message: "Status must be todo, in-progress, blocked, or done",
+        values: ["todo", "in-progress", "blocked", "ready-for-test", "done"],
+        message: "Status must be todo, in-progress, blocked, ready-for-test, or done",
       },
       default: "todo",
       required: true,

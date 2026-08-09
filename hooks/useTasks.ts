@@ -18,7 +18,7 @@ export interface TaskData {
   projectId: string;
   title: string;
   description: string;
-  status: "todo" | "in-progress" | "blocked" | "done";
+  status: "todo" | "in-progress" | "blocked" | "ready-for-test" | "done";
   priority: "low" | "medium" | "high";
   dueDate: string | null;
   comments: CommentData[];

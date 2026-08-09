@@ -481,6 +481,7 @@ export default function ProgressTab() {
               <option value="todo">Todo</option>
               <option value="in-progress">In Progress</option>
               <option value="blocked">Blocked</option>
+              <option value="ready-for-test">Ready for Test</option>
               <option value="done">Done</option>
             </select>
             <select

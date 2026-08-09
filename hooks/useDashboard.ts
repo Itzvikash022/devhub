@@ -27,7 +27,7 @@ export interface DashboardTask {
   _id: string;
   projectId: string;
   title: string;
-  status: "todo" | "in-progress" | "blocked" | "done";
+  status: "todo" | "in-progress" | "blocked" | "ready-for-test" | "done";
   priority: "low" | "medium" | "high";
   dueDate: string | null;
   createdAt: string;
@@ -40,7 +40,7 @@ export interface DashboardActivity {
   title: string;
   updatedAt: string;
   projectId: string | null;
-  status?: "todo" | "in-progress" | "blocked" | "done";
+  status?: "todo" | "in-progress" | "blocked" | "ready-for-test" | "done";
 }
 
 export interface DashboardData {

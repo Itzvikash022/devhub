@@ -7,7 +7,7 @@ export const createTaskSchema = z.object({
     .max(500, "Description cannot exceed 500 characters")
     .optional()
     .default(""),
-  status: z.enum(["todo", "in-progress", "blocked", "done"]).default("todo"),
+  status: z.enum(["todo", "in-progress", "blocked", "ready-for-test", "done"]).default("todo"),
   priority: z.enum(["low", "medium", "high"]).default("medium"),
   dueDate: z
     .preprocess((val) => (val ? new Date(val as string) : null), z.date().nullable())

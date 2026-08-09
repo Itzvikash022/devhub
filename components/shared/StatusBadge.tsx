@@ -34,13 +34,14 @@ export function ProjectStatusBadge({ status, className }: ProjectStatusBadgeProp
 
 // ─── Task Status Chip ─────────────────────────────────────────────────────────
 
-type TaskStatus = "todo" | "in-progress" | "blocked" | "done";
+type TaskStatus = "todo" | "in-progress" | "blocked" | "ready-for-test" | "done";
 
 const TASK_STATUS_CONFIG: Record<TaskStatus, { label: string; dotColor: string }> = {
-  todo:          { label: "todo",        dotColor: "#6B6E64" },
-  "in-progress": { label: "in-progress", dotColor: "#4F46C7" },
-  blocked:       { label: "blocked",     dotColor: "#B14B4B" },
-  done:          { label: "done",        dotColor: "#3F7A5C" },
+  todo:             { label: "todo",           dotColor: "#6B6E64" },
+  "in-progress":    { label: "in-progress",    dotColor: "#4F46C7" },
+  blocked:          { label: "blocked",        dotColor: "#B14B4B" },
+  "ready-for-test": { label: "ready-for-test", dotColor: "#0284C7" },
+  done:             { label: "done",           dotColor: "#3F7A5C" },
 };
 
 interface TaskStatusBadgeProps {

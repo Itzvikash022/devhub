@@ -217,6 +217,10 @@ When a task with a due date is created or updated, the service layer automatical
 
 ## Patch Notes
 
+### v2.4.3 — New Task Status: "Ready for Test"
+- **"Ready for Test" Status**: Introduced `ready-for-test` as a first-class task status across backend schemas, Mongoose database models, task dialog creation/edit forms, status filters, and status badges.
+- Configured a distinct sky blue (`#0284C7`) status dot indicator for items in the testing stage.
+
 ### v2.4.2 — Progress Tracker Right-Click Context Menu
 - **Task Row Context Menu**: Right-clicking any row in the Progress Tracker now opens a native-style context menu with two quick actions:
   - **Copy Task** — Copies a formatted text summary of the item (ID badge, title, type, status, priority, due date, and description) to the clipboard.

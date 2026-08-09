@@ -368,6 +368,7 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
                           <option value="todo">Todo</option>
                           <option value="in-progress">In Progress</option>
                           <option value="blocked">Blocked</option>
+                          <option value="ready-for-test">Ready for Test</option>
                           <option value="done">Done</option>
                         </select>
                         {errors.status?.message && <FieldError>{errors.status.message}</FieldError>}
@@ -651,6 +652,7 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
                       <option value="todo">Todo</option>
                       <option value="in-progress">In Progress</option>
                       <option value="blocked">Blocked</option>
+                      <option value="ready-for-test">Ready for Test</option>
                       <option value="done">Done</option>
                     </select>
                     {errors.status?.message && <FieldError>{errors.status.message}</FieldError>}

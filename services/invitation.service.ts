@@ -72,7 +72,7 @@ export class InvitationService {
       throw new Error("INVITATION_NOT_FOUND");
     }
 
-    if (invitation.inviteeEmail.toLowerCase() !== userEmail.toLowerCase()) {
+    if (invitation.email.toLowerCase() !== userEmail.toLowerCase()) {
       throw new Error("FORBIDDEN");
     }
 
@@ -100,7 +100,7 @@ export class InvitationService {
       throw new Error("INVITATION_NOT_FOUND");
     }
 
-    if (invitation.inviteeEmail.toLowerCase() !== userEmail.toLowerCase()) {
+    if (invitation.email.toLowerCase() !== userEmail.toLowerCase()) {
       throw new Error("FORBIDDEN");
     }
 

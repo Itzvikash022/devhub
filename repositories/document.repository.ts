@@ -22,7 +22,7 @@ export class DocumentRepository {
     const parseUser = objectIdSchema.safeParse(userId);
     if (!parseUser.success) return [];
 
-    const query: Record<string, mongoose.Types.ObjectId | null | undefined> = {
+    let query: any = {
       userId: new mongoose.Types.ObjectId(userId),
     };
 

@@ -33,6 +33,8 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ProjectSection, ProjectField } from "@/hooks/useProjects";
+import { ProjectDialog } from "@/components/dialogs/ProjectDialog";
+import {
   MoveSectionsDialog,
   getEstimatedCardHeight,
 } from "@/components/dialogs/MoveSectionsDialog";

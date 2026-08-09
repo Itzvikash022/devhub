@@ -12,7 +12,6 @@ export default function InvitationsPage() {
   useEffect(() => {
     setHeader({
       title: "Invitations",
-      description: "Manage your pending project invitations.",
     });
   }, [setHeader]);
 

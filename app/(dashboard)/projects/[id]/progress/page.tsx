@@ -223,7 +223,7 @@ export default function ProgressTab() {
           const taskAssigneeId = typeof task.assignedTo === 'object' && task.assignedTo !== null 
             ? (task.assignedTo as any)._id 
             : task.assignedTo;
-          matchesAssignee = taskAssigneeId === me.id;
+          matchesAssignee = taskAssigneeId === me.userId;
         }
 
         return matchesSearch && matchesStatus && matchesPriority && matchesType && matchesAssignee;

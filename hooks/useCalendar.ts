@@ -11,14 +11,13 @@ import type { ApiResponse } from "@/types";
 
 export interface CalendarEventData {
   _id: string;
-  userId: string;
+  userId: any;
   projectId: string | null;
   title: string;
   date: string;
   type: "personal" | "milestone" | "deadline" | "meeting" | "release";
   source: "manual" | "task" | "milestone";
   sourceId: string | null;
-  userId?: any;
   createdAt: string;
   updatedAt: string;
 }

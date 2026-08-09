@@ -628,7 +628,9 @@ export default function ProgressTab() {
                                   {format(new Date(task.dueDate), "MMM d, yyyy")}
                                 </span>
                                 {isOverdue && (
-                                  <AlertCircle className="h-3 w-3 text-destructive" title="Overdue!" />
+                                  <span title="Overdue!">
+                                    <AlertCircle className="h-3 w-3 text-destructive" />
+                                  </span>
                                 )}
                               </div>
                             ) : (

@@ -69,7 +69,7 @@ function buildCSV(tasks: TaskData[]): string {
         ? `B-${String(task.bugNumber || 0).padStart(4, "0")}`
         : `T-${String(task.bugNumber || 0).padStart(4, "0")}`,
       task.title || "Untitled",
-      task.type.toUpperCase(),
+      (task.type || "task").toUpperCase(),
       (task.description || "").replace(/"/g, '""'),
       task.status.toUpperCase(),
       task.priority.toUpperCase(),
@@ -90,7 +90,7 @@ function buildMarkdown(tasks: TaskData[]): string {
         ? `B-${String(task.bugNumber || 0).padStart(4, "0")}`
         : `T-${String(task.bugNumber || 0).padStart(4, "0")}`;
       let md = `## ${itemId}: ${statusBox} ${task.title}\n`;
-      md += `- **Type:** ${task.type.toUpperCase()}\n`;
+      md += `- **Type:** ${(task.type || "task").toUpperCase()}\n`;
       md += `- **Status:** ${task.status.toUpperCase()}\n`;
       md += `- **Priority:** ${task.priority.toUpperCase()}\n`;
       md += `- **Due Date:** ${dueText}\n\n`;
@@ -116,7 +116,7 @@ function buildPreviewText(tasks: TaskData[]): string {
         ? `B-${String(task.bugNumber || 0).padStart(4, "0")}`
         : `T-${String(task.bugNumber || 0).padStart(4, "0")}`;
       let text = `${itemId} ${statusBox} ${task.title}\n`;
-      text += `   Type: ${task.type} | Status: ${task.status} | Priority: ${task.priority} | Due: ${dueText}\n`;
+      text += `   Type: ${task.type || "task"} | Status: ${task.status} | Priority: ${task.priority} | Due: ${dueText}\n`;
       if (task.description?.trim()) text += `   ${task.description.trim()}\n`;
       if (task.comments?.length) {
         text += `   Comments (${task.comments.length})\n`;

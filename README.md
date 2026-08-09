@@ -217,6 +217,12 @@ When a task with a due date is created or updated, the service layer automatical
 
 ## Patch Notes
 
+### v2.5.0 — Multi-User Collaboration & Role Assignments
+- Added project sharing and invitation system for team collaboration.
+- Implemented task assignment functionality with an "Assigned to me" filter on the Progress Tracker.
+- Introduced `isShared` toggle on Passwords, allowing credentials to be securely shared with project members.
+- Added comprehensive creator attribution metadata ("Created by", "Uploaded by") across Notes, Images, Documents, Pipeline, Calendar, and Project Details.
+
 ### v2.4.3 — New Task Status: "Ready for Test"
 - Added **"Ready for Test"** as a task status across validation schemas, models, filters, task dialogs, and UI badges.
 

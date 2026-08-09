@@ -17,6 +17,7 @@ export interface ProjectData {
   updatedAt: string;
   noteCount?: number;
   taskCount?: number;
+  bugCounter?: number;
 }
 
 class ApiError extends Error {

@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     if (ext === "webp") contentType = "image/webp";
     if (ext === "svg") contentType = "image/svg+xml";
 
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": contentType,
         "Cache-Control": "public, max-age=31536000, immutable",

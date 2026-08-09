@@ -19,6 +19,14 @@ export class CalendarService {
       throw new Error("NOT_FOUND");
     }
 
+    // If it's a project event, verify project access instead of direct ownership
+    if (event.projectId) {
+      try {
+        await ProjectService.getById(userId, event.projectId.toString());
+        return event;
+      } catch (e) {}
+    }
+
     if (event.userId.toString() !== userId) {
       throw new Error("FORBIDDEN");
     }

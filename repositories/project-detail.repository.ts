@@ -12,7 +12,7 @@ export class ProjectDetailRepository {
     if (!parseResult.success) return null;
 
     await connectToDatabase();
-    return ProjectDetail.findOne({ projectId: new mongoose.Types.ObjectId(projectId) }).exec();
+    return ProjectDetail.findOne({ projectId: new mongoose.Types.ObjectId(projectId) }).populate("createdBy", "name email").exec();
   }
 
   /**
@@ -20,6 +20,7 @@ export class ProjectDetailRepository {
    */
   static async create(
     projectId: string,
+    createdBy: string,
     sections: IProjectSection[] = []
   ): Promise<IProjectDetailDocument> {
     const parseResult = objectIdSchema.safeParse(projectId);
@@ -30,6 +31,7 @@ export class ProjectDetailRepository {
     await connectToDatabase();
     const details = new ProjectDetail({
       projectId: new mongoose.Types.ObjectId(projectId),
+      createdBy: new mongoose.Types.ObjectId(createdBy),
       sections,
     });
     return details.save();
@@ -40,7 +42,8 @@ export class ProjectDetailRepository {
    */
   static async update(
     projectId: string,
-    sections: IProjectSection[]
+    sections: IProjectSection[],
+    createdBy: string
   ): Promise<IProjectDetailDocument | null> {
     const parseResult = objectIdSchema.safeParse(projectId);
     if (!parseResult.success) return null;
@@ -48,9 +51,9 @@ export class ProjectDetailRepository {
     await connectToDatabase();
     return ProjectDetail.findOneAndUpdate(
       { projectId: new mongoose.Types.ObjectId(projectId) },
-      { sections },
+      { sections, $setOnInsert: { createdBy: new mongoose.Types.ObjectId(createdBy) } },
       { new: true, upsert: true, runValidators: true }
-    ).exec();
+    ).populate("createdBy", "name email").exec();
   }
 
   /**

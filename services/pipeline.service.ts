@@ -16,7 +16,7 @@ export class PipelineService {
       throw new Error("NOT_FOUND");
     }
 
-    // Verify user owns the associated project
+    // Verify user owns or has shared access to the associated project
     await ProjectService.getById(userId, item.projectId.toString());
     return item;
   }
@@ -39,6 +39,7 @@ export class PipelineService {
       url: data.url,
       environment: data.environment || null,
       notes: data.notes || "",
+      createdBy: userId,
     });
 
     await ProjectService.touch(projectId);

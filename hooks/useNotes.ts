@@ -12,6 +12,7 @@ export interface NoteData {
   title: string;
   content: string; // JSON string
   order: number;
+  createdBy?: any;
   createdAt: string;
   updatedAt: string;
 }

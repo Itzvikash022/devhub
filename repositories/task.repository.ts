@@ -12,7 +12,11 @@ export class TaskRepository {
     if (!parseResult.success) return null;
 
     await connectToDatabase();
-    return Task.findById(id).exec();
+    return Task.findById(id)
+      .populate("createdBy", "name email")
+      .populate("assignedTo", "name email")
+      .populate("comments.createdBy", "name email")
+      .exec();
   }
 
   /**
@@ -24,6 +28,9 @@ export class TaskRepository {
 
     await connectToDatabase();
     return Task.find({ projectId: new mongoose.Types.ObjectId(projectId) })
+      .populate("createdBy", "name email")
+      .populate("assignedTo", "name email")
+      .populate("comments.createdBy", "name email")
       .sort({ createdAt: -1 })
       .exec();
   }
@@ -42,12 +49,16 @@ export class TaskRepository {
     bugNumber?: number | null;
     area?: string | null;
     screenshots?: string[];
+    assignedTo?: string | null;
+    createdBy: string;
     closedAt?: Date | null;
   }): Promise<ITaskDocument> {
     await connectToDatabase();
     const task = new Task({
       ...taskData,
       projectId: new mongoose.Types.ObjectId(taskData.projectId),
+      createdBy: new mongoose.Types.ObjectId(taskData.createdBy),
+      assignedTo: taskData.assignedTo ? new mongoose.Types.ObjectId(taskData.assignedTo) : null,
     });
     return task.save();
   }
@@ -67,6 +78,7 @@ export class TaskRepository {
       bugNumber: number | null;
       area: string | null;
       screenshots: string[];
+      assignedTo: string | null;
       closedAt: Date | null;
     }>
   ): Promise<ITaskDocument | null> {
@@ -106,7 +118,7 @@ export class TaskRepository {
   /**
    * Appends a comment to a task's comments list.
    */
-  static async addComment(id: string, commentText: string): Promise<ITaskDocument | null> {
+  static async addComment(id: string, commentText: string, createdBy: string): Promise<ITaskDocument | null> {
     const parseResult = objectIdSchema.safeParse(id);
     if (!parseResult.success) return null;
 
@@ -114,7 +126,7 @@ export class TaskRepository {
     return Task.findByIdAndUpdate(
       id,
       {
-        $push: { comments: { text: commentText, createdAt: new Date() } },
+        $push: { comments: { text: commentText, createdBy: new mongoose.Types.ObjectId(createdBy), createdAt: new Date() } },
       },
       { new: true }
     ).exec();

@@ -12,7 +12,10 @@ export class ProjectRepository {
     if (!parseResult.success) return null;
 
     await connectToDatabase();
-    return Project.findById(id).exec();
+    return Project.findById(id)
+      .populate("userId", "name email")
+      .populate("sharedWith", "name email")
+      .exec();
   }
 
   /**
@@ -27,13 +30,20 @@ export class ProjectRepository {
 
     await connectToDatabase();
 
-    const query: any = { userId: new mongoose.Types.ObjectId(userId) };
+    const userObjId = new mongoose.Types.ObjectId(userId);
+    const query: any = {
+      $or: [{ userId: userObjId }, { sharedWith: userObjId }],
+    };
     if (filter?.status) {
       query.status = filter.status;
     }
 
     // Sort active first, then on-hold, then archived. Within statuses, sort by name.
-    return Project.find(query).sort({ updatedAt: -1 }).exec();
+    return Project.find(query)
+      .populate("userId", "name email")
+      .populate("sharedWith", "name email")
+      .sort({ updatedAt: -1 })
+      .exec();
   }
 
   /**
@@ -118,5 +128,21 @@ export class ProjectRepository {
     }
 
     return updated.bugCounter;
+  }
+
+  /**
+   * Adds a user to the sharedWith array of a project.
+   */
+  static async addSharedUser(projectId: string, userId: string): Promise<IProjectDocument | null> {
+    const parseProject = objectIdSchema.safeParse(projectId);
+    const parseUser = objectIdSchema.safeParse(userId);
+    if (!parseProject.success || !parseUser.success) return null;
+
+    await connectToDatabase();
+    return Project.findByIdAndUpdate(
+      projectId,
+      { $addToSet: { sharedWith: new mongoose.Types.ObjectId(userId) } },
+      { new: true }
+    ).exec();
   }
 }

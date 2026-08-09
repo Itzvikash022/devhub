@@ -12,7 +12,7 @@ export class PasswordRepository {
     if (!parseResult.success) return null;
 
     await connectToDatabase();
-    return Password.findById(id).exec();
+    return Password.findById(id).populate("userId", "name email").exec();
   }
 
   /**
@@ -22,19 +22,22 @@ export class PasswordRepository {
     const parseUser = objectIdSchema.safeParse(userId);
     if (!parseUser.success) return [];
 
-    const query: Record<string, mongoose.Types.ObjectId | null | undefined> = {
-      userId: new mongoose.Types.ObjectId(userId),
-    };
-
+    let query: any = {};
     if (projectId) {
       const parseProject = objectIdSchema.safeParse(projectId);
       if (parseProject.success) {
         query.projectId = new mongoose.Types.ObjectId(projectId);
+        query.$or = [{ userId: new mongoose.Types.ObjectId(userId) }, { isShared: true }];
       }
+    } else {
+      query.$or = [
+        { userId: new mongoose.Types.ObjectId(userId) },
+        { isShared: true, projectId: { $ne: null } }
+      ];
     }
 
     await connectToDatabase();
-    return Password.find(query).sort({ createdAt: -1 }).exec();
+    return Password.find(query).populate("userId", "name email").sort({ createdAt: -1 }).exec();
   }
 
   /**
@@ -50,6 +53,7 @@ export class PasswordRepository {
     url: string | null;
     category: string;
     notes: string;
+    isShared: boolean;
   }): Promise<IPasswordDocument> {
     await connectToDatabase();
     const password = new Password({
@@ -76,6 +80,7 @@ export class PasswordRepository {
       url: string | null;
       category: string;
       notes: string;
+      isShared: boolean;
     }>
   ): Promise<IPasswordDocument | null> {
     const parseResult = objectIdSchema.safeParse(id);

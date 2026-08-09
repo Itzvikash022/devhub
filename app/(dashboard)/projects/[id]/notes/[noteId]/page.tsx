@@ -285,9 +285,16 @@ export default function ActiveNotePage() {
             </button>
           )}
 
-          <span className="font-mono text-[11px] text-[#6B6E64]">
-            {format(new Date(note.updatedAt || note.createdAt), "yyyy-MM-dd")}
-          </span>
+          <div className="flex flex-col items-end mr-2">
+            <span className="font-mono text-[11px] text-[#6B6E64]">
+              {format(new Date(note.updatedAt || note.createdAt), "yyyy-MM-dd")}
+            </span>
+            {note.createdBy && (
+              <span className="font-mono text-[9px] text-[#6B6E64]">
+                By: {note.createdBy.name || "Unknown"}
+              </span>
+            )}
+          </div>
 
           {mode === "preview" && (
             <>

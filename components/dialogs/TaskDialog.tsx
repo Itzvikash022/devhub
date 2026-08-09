@@ -82,6 +82,7 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
       dueDate: null,
       type: defaultType || "task",
       area: "",
+      assignedTo: "",
       screenshots: [],
     },
   });
@@ -101,6 +102,9 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
           dueDate: task.dueDate ? new Date(task.dueDate) : null,
           type: task.type || "task",
           area: task.area || "",
+          assignedTo: typeof task.assignedTo === 'object' && task.assignedTo !== null 
+            ? (task.assignedTo as any)._id 
+            : (task.assignedTo || ""),
           screenshots: task.screenshots || [],
         });
       } else {
@@ -112,6 +116,7 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
           dueDate: null,
           type: defaultType || "task",
           area: "",
+          assignedTo: "",
           screenshots: [],
         });
       }
@@ -376,6 +381,31 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
                     </div>
 
                     <div>
+                      <Field data-invalid={!!errors.assignedTo}>
+                        <FieldLabel htmlFor="assignedTo" className="text-xs">Assigned To</FieldLabel>
+                        <select
+                          id="assignedTo"
+                          disabled={isPending}
+                          {...register("assignedTo")}
+                          className="border-input bg-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-2.5 py-1 text-xs shadow-sm transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <option value="">Unassigned</option>
+                          {project?.userId && (
+                            <option value={(project.userId as any)._id || project.userId}>
+                              {(project.userId as any).name || "Owner"} (Owner)
+                            </option>
+                          )}
+                          {project?.sharedWith?.map((u: any) => (
+                            <option key={u._id || u} value={u._id || u}>
+                              {u.name || "Member"}
+                            </option>
+                          ))}
+                        </select>
+                        {errors.assignedTo?.message && <FieldError>{errors.assignedTo.message}</FieldError>}
+                      </Field>
+                    </div>
+
+                    <div>
                       <Field data-invalid={!!errors.priority}>
                         <FieldLabel htmlFor="priority" className="text-xs">Priority</FieldLabel>
                         <select
@@ -564,9 +594,14 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
                             <p className="text-foreground bg-background border-border rounded border p-2.5 text-xs leading-relaxed break-all break-words">
                               {comment.text}
                             </p>
-                            <span className="text-muted-foreground block text-right font-mono text-[10px]">
-                              {new Date(comment.createdAt).toLocaleString()}
-                            </span>
+                            <div className="flex items-center justify-between mt-1 px-1">
+                              <span className="text-muted-foreground block font-mono text-[10px] font-medium">
+                                {comment.createdBy?.name || comment.userName || "Team Member"}
+                              </span>
+                              <span className="text-muted-foreground block text-right font-mono text-[10px]">
+                                {new Date(comment.createdAt).toLocaleString()}
+                              </span>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -656,6 +691,31 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
                       <option value="done">Done</option>
                     </select>
                     {errors.status?.message && <FieldError>{errors.status.message}</FieldError>}
+                  </Field>
+                </div>
+
+                <div>
+                  <Field data-invalid={!!errors.assignedTo}>
+                    <FieldLabel htmlFor="assignedTo">Assigned To</FieldLabel>
+                    <select
+                      id="assignedTo"
+                      disabled={isPending}
+                      {...register("assignedTo")}
+                      className="border-input bg-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="">Unassigned</option>
+                      {project?.userId && (
+                        <option value={(project.userId as any)._id || project.userId}>
+                          {(project.userId as any).name || "Owner"} (Owner)
+                        </option>
+                      )}
+                      {project?.sharedWith?.map((u: any) => (
+                        <option key={u._id || u} value={u._id || u}>
+                          {u.name || "Member"}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.assignedTo?.message && <FieldError>{errors.assignedTo.message}</FieldError>}
                   </Field>
                 </div>
 

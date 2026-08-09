@@ -651,13 +651,20 @@ export function ImageVaultView({ projectId }: ImageVaultViewProps) {
                     </div>
 
                     {/* Card Metadata Footer */}
-                    <CardContent className="flex min-w-0 items-center justify-between px-2.5 py-2 select-none h-9 shrink-0 bg-card border-t border-border/40 text-[11px] font-medium">
-                      <span className="text-foreground truncate font-semibold max-w-[70%]" title={image.name}>
-                        {image.name}
-                      </span>
-                      <span className="text-muted-foreground font-mono text-[9px] shrink-0">
-                        {formatBytes(image.fileSize)}
-                      </span>
+                    <CardContent className="flex min-w-0 flex-col px-2.5 py-2 select-none shrink-0 bg-card border-t border-border/40 text-[11px] font-medium justify-center h-[52px]">
+                      <div className="flex items-center justify-between min-w-0">
+                        <span className="text-foreground truncate font-semibold max-w-[70%]" title={image.name}>
+                          {image.name}
+                        </span>
+                        <span className="text-muted-foreground font-mono text-[9px] shrink-0">
+                          {formatBytes(image.fileSize)}
+                        </span>
+                      </div>
+                      {image.uploadedBy && (
+                        <div className="text-muted-foreground font-mono text-[9px] mt-0.5 truncate">
+                          By: {image.uploadedBy.name || "Unknown"}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 );

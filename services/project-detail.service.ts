@@ -14,7 +14,7 @@ export class ProjectDetailService {
 
     let details = await ProjectDetailRepository.findByProjectId(projectId);
     if (!details) {
-      details = await ProjectDetailRepository.create(projectId, []);
+      details = await ProjectDetailRepository.create(projectId, userId, []);
     }
 
     return details;
@@ -31,7 +31,7 @@ export class ProjectDetailService {
     // Verify ownership
     await ProjectService.getById(userId, projectId);
 
-    const updated = await ProjectDetailRepository.update(projectId, data.sections);
+    const updated = await ProjectDetailRepository.update(projectId, data.sections, userId);
     if (!updated) {
       throw new Error("UPDATE_FAILED");
     }

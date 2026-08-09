@@ -12,7 +12,7 @@ export class NoteRepository {
     if (!parseResult.success) return null;
 
     await connectToDatabase();
-    return Note.findById(id).exec();
+    return Note.findById(id).populate("createdBy", "name email").exec();
   }
 
   /**
@@ -24,6 +24,7 @@ export class NoteRepository {
 
     await connectToDatabase();
     return Note.find({ projectId: new mongoose.Types.ObjectId(projectId) })
+      .populate("createdBy", "name email")
       .sort({ order: 1 })
       .exec();
   }
@@ -36,11 +37,13 @@ export class NoteRepository {
     title: string;
     content: string;
     order: number;
+    createdBy: string;
   }): Promise<INoteDocument> {
     await connectToDatabase();
     const note = new Note({
       ...noteData,
       projectId: new mongoose.Types.ObjectId(noteData.projectId),
+      createdBy: new mongoose.Types.ObjectId(noteData.createdBy),
     });
     return note.save();
   }

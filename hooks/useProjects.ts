@@ -13,6 +13,8 @@ export interface ProjectData {
   name: string;
   description: string;
   status: "active" | "on-hold" | "archived";
+  userId: any;
+  sharedWith?: any[];
   createdAt: string;
   updatedAt: string;
   noteCount?: number;
@@ -151,6 +153,7 @@ export interface ProjectDetailData {
   _id: string;
   projectId: string;
   sections: ProjectSection[];
+  createdBy?: any;
   createdAt: string;
   updatedAt: string;
 }

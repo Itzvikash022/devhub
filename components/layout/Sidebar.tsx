@@ -20,6 +20,7 @@ import {
   Info,
   CheckSquare,
   GitBranch,
+  Inbox,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/constants/routes.constants";
@@ -51,6 +52,7 @@ interface SidebarProps {
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard },
   { label: "Projects", href: ROUTES.PROJECTS, icon: FolderOpen },
+  { label: "Invitations", href: ROUTES.INVITATIONS, icon: Inbox },
   { label: "Calendar", href: ROUTES.CALENDAR, icon: Calendar },
 ];
 

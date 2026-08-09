@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from "mongoose";
 
 export interface IComment {
   text: string;
+  createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
 }
 
@@ -17,6 +18,8 @@ export interface ITask {
   bugNumber?: number | null;
   area?: string | null;
   screenshots: string[];
+  assignedTo?: mongoose.Types.ObjectId | null;
+  createdBy: mongoose.Types.ObjectId;
   closedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -30,6 +33,7 @@ export interface ITaskDocument extends Document, Omit<ITask, "createdAt" | "upda
 const CommentSchema = new Schema<IComment>(
   {
     text: { type: String, required: true, trim: true },
+    createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
     createdAt: { type: Date, default: Date.now },
   },
   { _id: false }
@@ -107,6 +111,18 @@ const TaskSchema: Schema = new Schema<ITaskDocument>(
     screenshots: {
       type: [String],
       default: [],
+    },
+    assignedTo: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "Creator ID is required"],
+      index: true,
     },
     closedAt: {
       type: Date,

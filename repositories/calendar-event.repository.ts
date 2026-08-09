@@ -12,7 +12,7 @@ export class CalendarEventRepository {
     if (!parseResult.success) return null;
 
     await connectToDatabase();
-    return CalendarEvent.findById(id).exec();
+    return CalendarEvent.findById(id).populate("userId", "name email").exec();
   }
 
   /**
@@ -25,19 +25,18 @@ export class CalendarEventRepository {
     const parseUser = objectIdSchema.safeParse(userId);
     if (!parseUser.success) return [];
 
-    const query: Record<string, mongoose.Types.ObjectId | null | undefined> = {
-      userId: new mongoose.Types.ObjectId(userId),
-    };
-
+    let query: any = {};
     if (projectId) {
       const parseProject = objectIdSchema.safeParse(projectId);
       if (parseProject.success) {
         query.projectId = new mongoose.Types.ObjectId(projectId);
       }
+    } else {
+      query.userId = new mongoose.Types.ObjectId(userId);
     }
 
     await connectToDatabase();
-    return CalendarEvent.find(query).sort({ date: 1 }).exec();
+    return CalendarEvent.find(query).populate("userId", "name email").sort({ date: 1 }).exec();
   }
 
   /**

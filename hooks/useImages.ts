@@ -23,6 +23,7 @@ export interface ImageAssetData {
   thumbnail?: string | null;
   originalKey?: string | null;
   thumbnailKey?: string | null;
+  uploadedBy?: any;
   createdAt: string;
   updatedAt: string;
 }

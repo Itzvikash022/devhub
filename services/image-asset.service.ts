@@ -26,7 +26,7 @@ export class ImageAssetService {
       throw new Error("NOT_FOUND");
     }
 
-    // Verify user owns the associated project
+    // Verify user has access to the associated project (owner or shared)
     await ProjectService.getById(userId, asset.projectId.toString());
     return asset;
   }
@@ -107,6 +107,7 @@ export class ImageAssetService {
       thumbnail: isEncrypted ? null : (data.thumbnail ?? null),
       originalKey: data.originalKey || data.r2Key || null,
       thumbnailKey: data.thumbnailKey ?? null,
+      uploadedBy: userId,
     });
 
     if (projectId) {
@@ -260,6 +261,7 @@ export class ImageAssetService {
       description: description || "",
       expiryDate: null,
       isEncrypted,
+      uploadedBy: userId,
     });
 
     if (projectId) {

@@ -18,6 +18,7 @@ export interface CalendarEventData {
   type: "personal" | "milestone" | "deadline" | "meeting" | "release";
   source: "manual" | "task" | "milestone";
   sourceId: string | null;
+  userId?: any;
   createdAt: string;
   updatedAt: string;
 }

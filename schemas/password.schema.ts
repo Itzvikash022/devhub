@@ -29,6 +29,7 @@ export const createPasswordSchema = z.object({
   ]),
   projectId: z.string().nullable().optional().default(null),
   notes: z.string().max(500, "Notes cannot exceed 500 characters").optional().default(""),
+  isShared: z.boolean().optional().default(false),
 });
 
 export const updatePasswordSchema = createPasswordSchema.partial();

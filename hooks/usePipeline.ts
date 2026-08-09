@@ -25,6 +25,7 @@ export interface PipelineItemData {
   url: string;
   environment: "production" | "development" | "staging" | null;
   notes: string;
+  createdBy?: any;
   createdAt: string;
   updatedAt: string;
 }

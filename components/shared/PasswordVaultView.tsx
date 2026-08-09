@@ -420,9 +420,16 @@ export function PasswordVaultView({ projectId }: PasswordVaultViewProps) {
 
                       {/* Category */}
                       <td className="px-4 py-3">
-                        <span className="font-mono text-[10px] uppercase tracking-wide text-[#6B6E64] bg-[#EEF0EA] px-2 py-0.5 rounded">
-                          {CATEGORY_LABELS[pw.category] || pw.category}
-                        </span>
+                        <div className="flex flex-col items-start gap-1">
+                          <span className="font-mono text-[10px] uppercase tracking-wide text-[#6B6E64] bg-[#EEF0EA] px-2 py-0.5 rounded">
+                            {CATEGORY_LABELS[pw.category] || pw.category}
+                          </span>
+                          {pw.isShared && (
+                            <span className="font-mono text-[9px] uppercase tracking-wide text-[#4F46C7] bg-[#4F46C7]/10 px-1.5 py-0.5 rounded border border-[#4F46C7]/20">
+                              Shared
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Project (Global view) */}

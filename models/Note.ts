@@ -5,6 +5,7 @@ export interface INote {
   title: string;
   content: string; // JSON string of BlockNote structure
   order: number;
+  createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,6 +36,12 @@ const NoteSchema: Schema = new Schema<INoteDocument>(
     order: {
       type: Number,
       required: [true, "Order is required"],
+      index: true,
+    },
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "Creator ID is required"],
       index: true,
     },
   },

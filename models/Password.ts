@@ -19,6 +19,7 @@ export interface IPassword {
     | "utility"
     | "other";
   notes: string;
+  isShared: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -92,6 +93,11 @@ const PasswordSchema: Schema = new Schema<IPasswordDocument>(
       trim: true,
       default: "",
       maxlength: [500, "Notes cannot exceed 500 characters"],
+    },
+    isShared: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
   },
   {

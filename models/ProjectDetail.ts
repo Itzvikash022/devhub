@@ -14,6 +14,7 @@ export interface IProjectSection {
 export interface IProjectDetail {
   projectId: mongoose.Types.ObjectId;
   sections: IProjectSection[];
+  createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -70,6 +71,12 @@ const ProjectDetailSchema = new Schema<IProjectDetailDocument>(
     sections: {
       type: [SectionSchema],
       default: [],
+    },
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "Creator ID is required"],
+      index: true,
     },
   },
   {

@@ -12,7 +12,7 @@ export class PipelineRepository {
     if (!parseResult.success) return null;
 
     await connectToDatabase();
-    return PipelineItem.findById(id).exec();
+    return PipelineItem.findById(id).populate("createdBy", "name email").exec();
   }
 
   /**
@@ -24,6 +24,7 @@ export class PipelineRepository {
 
     await connectToDatabase();
     return PipelineItem.find({ projectId: new mongoose.Types.ObjectId(projectId) })
+      .populate("createdBy", "name email")
       .sort({ createdAt: -1 })
       .exec();
   }
@@ -38,11 +39,13 @@ export class PipelineRepository {
     url: string;
     environment: string | null;
     notes: string;
+    createdBy: string;
   }): Promise<IPipelineItemDocument> {
     await connectToDatabase();
     const item = new PipelineItem({
       ...itemData,
       projectId: new mongoose.Types.ObjectId(itemData.projectId),
+      createdBy: new mongoose.Types.ObjectId(itemData.createdBy),
     });
     return item.save();
   }

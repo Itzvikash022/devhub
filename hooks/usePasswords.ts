@@ -24,6 +24,7 @@ export interface PasswordData {
     | "utility"
     | "other";
   notes: string;
+  isShared: boolean;
   createdAt: string;
   updatedAt: string;
 }

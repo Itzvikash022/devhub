@@ -39,6 +39,7 @@ export class NoteService {
       title: data.title || "Untitled",
       content: data.content || "[]",
       order: data.order !== undefined && data.order !== 0 ? data.order : nextOrder,
+      createdBy: userId,
     });
 
     await ProjectService.touch(projectId);

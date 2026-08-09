@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     // 1. Fetch user's active/on-hold projects (sorted by updatedAt desc)
     const userProjects = await Project.find({
-      userId,
+      $or: [{ userId }, { sharedWith: userId }],
       status: { $ne: "archived" },
     })
       .sort({ updatedAt: -1 })

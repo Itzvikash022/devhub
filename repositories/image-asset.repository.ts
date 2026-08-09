@@ -12,7 +12,7 @@ export class ImageAssetRepository {
     if (!parseResult.success) return null;
 
     await connectToDatabase();
-    return ImageAsset.findById(id).exec();
+    return ImageAsset.findById(id).populate("uploadedBy", "name email").exec();
   }
 
   /**
@@ -24,6 +24,7 @@ export class ImageAssetRepository {
 
     await connectToDatabase();
     return ImageAsset.find({ projectId: new mongoose.Types.ObjectId(projectId) })
+      .populate("uploadedBy", "name email")
       .sort({ createdAt: -1 })
       .exec();
   }
@@ -40,6 +41,7 @@ export class ImageAssetRepository {
       .map((r) => new mongoose.Types.ObjectId(r.data));
 
     return ImageAsset.find({ projectId: { $in: objectIds } })
+      .populate("uploadedBy", "name email")
       .sort({ createdAt: -1 })
       .exec();
   }
@@ -63,11 +65,13 @@ export class ImageAssetRepository {
     thumbnail?: string | null;
     originalKey?: string | null;
     thumbnailKey?: string | null;
+    uploadedBy: string;
   }): Promise<IImageAssetDocument> {
     await connectToDatabase();
     const asset = new ImageAsset({
       ...imageData,
       projectId: new mongoose.Types.ObjectId(imageData.projectId),
+      uploadedBy: new mongoose.Types.ObjectId(imageData.uploadedBy),
     });
     return asset.save();
   }
@@ -133,6 +137,7 @@ export class ImageAssetRepository {
 
     const [items, totalCount] = await Promise.all([
       ImageAsset.find(query)
+        .populate("uploadedBy", "name email")
         .sort(sortOptions)
         .skip(skip)
         .limit(pageSize)

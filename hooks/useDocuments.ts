@@ -8,7 +8,7 @@ import type { ApiResponse } from "@/types";
 
 export interface DocumentData {
   _id: string;
-  userId: string;
+  userId: any;
   projectId: string | null;
   title: string;
   r2Key: string;

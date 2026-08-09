@@ -19,6 +19,16 @@ export class DocumentService {
       throw new Error("NOT_FOUND");
     }
 
+    // If it's a project document, verify project ownership instead of just doc ownership
+    if (doc.projectId) {
+      try {
+        await ProjectService.getById(userId, doc.projectId.toString());
+        return doc; // User has access to the project
+      } catch (e) {
+        // Fall back to direct ownership check if project check fails (though shouldn't happen if they own it)
+      }
+    }
+
     if (doc.userId.toString() !== userId) {
       throw new Error("FORBIDDEN");
     }

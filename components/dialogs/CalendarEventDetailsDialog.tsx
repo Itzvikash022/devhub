@@ -140,6 +140,18 @@ export function CalendarEventDetailsDialog({
               )}
             </div>
           </div>
+          
+          {item.userId && (
+            <div className="border-border/30 flex items-start gap-2.5 border-t pt-3">
+              <div className="mt-0.5 h-4 w-4 shrink-0 flex items-center justify-center bg-muted rounded-full">
+                <span className="text-[9px] font-bold text-muted-foreground">BY</span>
+              </div>
+              <div>
+                <p className="text-foreground font-semibold">Created By</p>
+                <p className="mt-1 leading-relaxed">{item.userId.name || "Unknown"}</p>
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="border-border/30 gap-2 border-t pt-3">

@@ -68,6 +68,7 @@ export function PasswordDialog({
       category: "other",
       projectId: null,
       notes: "",
+      isShared: false,
     },
   });
 
@@ -82,6 +83,7 @@ export function PasswordDialog({
         category: "other",
         projectId: null,
         notes: "",
+        isShared: false,
       });
     }
     onOpenChange(isOpen);
@@ -98,6 +100,7 @@ export function PasswordDialog({
           category: item.category,
           projectId: item.projectId || null,
           notes: item.notes || "",
+          isShared: item.isShared || false,
         });
       } else {
         reset({
@@ -108,6 +111,7 @@ export function PasswordDialog({
           category: "other",
           projectId: defaultProjectId || null,
           notes: "",
+          isShared: false,
         });
       }
     }
@@ -259,6 +263,27 @@ export function PasswordDialog({
                 {...register("notes")}
               />
               {errors.notes?.message && <FieldError>{errors.notes.message}</FieldError>}
+            </Field>
+
+            <Field data-invalid={!!errors.isShared}>
+              <div className="flex items-start gap-2 pt-2 pb-1">
+                <input
+                  id="isShared"
+                  type="checkbox"
+                  disabled={isPending}
+                  className="rounded border-input text-primary focus:ring-primary h-4 w-4 mt-0.5"
+                  {...register("isShared")}
+                />
+                <div>
+                  <label htmlFor="isShared" className="text-sm font-medium leading-none cursor-pointer">
+                    Share with project members
+                  </label>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    If checked and linked to a project, other members of the project can view this password.
+                  </p>
+                </div>
+              </div>
+              {errors.isShared?.message && <FieldError>{errors.isShared.message}</FieldError>}
             </Field>
           </div>
 

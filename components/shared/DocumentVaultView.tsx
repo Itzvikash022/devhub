@@ -541,6 +541,11 @@ export function DocumentVaultView({ projectId }: DocumentVaultViewProps) {
                               </p>
                               <p className="font-mono text-[10px] text-muted-foreground truncate leading-tight mt-0.5">
                                 {doc.fileName}
+                                {doc.userId && (
+                                  <span className="ml-2 px-1.5 py-0.5 bg-muted rounded text-[9px]">
+                                    By: {doc.userId.name || "Unknown"}
+                                  </span>
+                                )}
                               </p>
                             </div>
                           </div>

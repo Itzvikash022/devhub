@@ -12,7 +12,7 @@ export class DocumentRepository {
     if (!parseResult.success) return null;
 
     await connectToDatabase();
-    return DocumentModel.findById(id).exec();
+    return DocumentModel.findById(id).populate("userId", "name email").exec();
   }
 
   /**
@@ -29,12 +29,12 @@ export class DocumentRepository {
     if (projectId) {
       const parseProject = objectIdSchema.safeParse(projectId);
       if (parseProject.success) {
-        query.projectId = new mongoose.Types.ObjectId(projectId);
+        query = { projectId: new mongoose.Types.ObjectId(projectId) } as any;
       }
     }
 
     await connectToDatabase();
-    return DocumentModel.find(query).sort({ createdAt: -1 }).exec();
+    return DocumentModel.find(query).populate("userId", "name email").sort({ createdAt: -1 }).exec();
   }
 
   /**
@@ -134,14 +134,15 @@ export class DocumentRepository {
   ): Promise<{ items: IDocumentDocument[]; totalCount: number }> {
     await connectToDatabase();
 
-    const query: Record<string, any> = {
-      userId: new mongoose.Types.ObjectId(userId),
-    };
+    let query: Record<string, any> = {};
 
     if (projectId) {
       query.projectId = new mongoose.Types.ObjectId(projectId);
     } else if (projectId === null) {
       query.projectId = null;
+      query.userId = new mongoose.Types.ObjectId(userId);
+    } else {
+      query.userId = new mongoose.Types.ObjectId(userId);
     }
 
     if (filters.category) {
@@ -188,6 +189,7 @@ export class DocumentRepository {
 
     const [items, totalCount] = await Promise.all([
       DocumentModel.find(query)
+        .populate("userId", "name email")
         .sort(sortOption)
         .skip(skip)
         .limit(pagination.pageSize)

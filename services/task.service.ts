@@ -49,6 +49,8 @@ export class TaskService {
       bugNumber,
       area: data.area || null,
       screenshots: data.screenshots || [],
+      assignedTo: data.assignedTo || null,
+      createdBy: userId,
       closedAt,
     });
 
@@ -180,7 +182,7 @@ export class TaskService {
   static async addComment(userId: string, id: string, text: string): Promise<ITaskDocument> {
     const task = await this.verifyTaskOwnership(userId, id);
 
-    const updated = await TaskRepository.addComment(id, text);
+    const updated = await TaskRepository.addComment(id, text, userId);
     if (!updated) {
       throw new Error("COMMENT_FAILED");
     }

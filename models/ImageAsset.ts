@@ -16,6 +16,7 @@ export interface IImageAsset {
   thumbnail?: string | null;
   originalKey?: string | null;
   thumbnailKey?: string | null;
+  uploadedBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -101,6 +102,12 @@ const ImageAssetSchema: Schema = new Schema<IImageAssetDocument>(
     thumbnailKey: {
       type: String,
       default: null,
+    },
+    uploadedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "Uploader ID is required"],
+      index: true,
     },
   },
   {

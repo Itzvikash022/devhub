@@ -10,6 +10,7 @@ export interface CommentData {
   _id?: string;
   userName?: string;
   text: string;
+  createdBy?: any;
   createdAt: string;
 }
 
@@ -27,6 +28,8 @@ export interface TaskData {
   area?: string | null;
   screenshots?: string[];
   closedAt?: string | null;
+  createdBy?: any;
+  assignedTo?: any;
   createdAt: string;
   updatedAt: string;
 }

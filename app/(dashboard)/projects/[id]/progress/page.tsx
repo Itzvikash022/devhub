@@ -9,6 +9,7 @@ import {
   useAddComment,
   TaskData,
 } from "@/hooks/useTasks";
+import { useMe } from "@/hooks/useAuth";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TaskStatusBadge, PriorityBadge } from "@/components/shared/StatusBadge";
 import { TaskDialog } from "@/components/dialogs/TaskDialog";
@@ -165,6 +166,7 @@ export default function ProgressTab() {
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("dueDate-asc");
+  const [assignedToMeOnly, setAssignedToMeOnly] = useState(false);
 
   // Screenshot preview dialog states
   const [screenshotPreviewSrc, setScreenshotPreviewSrc] = useState<string | null>(null);
@@ -191,6 +193,7 @@ export default function ProgressTab() {
   const { data: tasks = [], isLoading, error } = useTasksList(projectId);
   const { mutate: deleteTask, isPending: isDeletePending } = useDeleteTask(projectId);
   const { mutate: updateTask } = useUpdateTask(projectId);
+  const { data: me } = useMe();
 
   const selectedTask = useMemo(
     () => tasks.find((t) => t._id === selectedTaskId),
@@ -215,7 +218,15 @@ export default function ProgressTab() {
           matchesType = task.type === "bug";
         }
 
-        return matchesSearch && matchesStatus && matchesPriority && matchesType;
+        let matchesAssignee = true;
+        if (assignedToMeOnly && me) {
+          const taskAssigneeId = typeof task.assignedTo === 'object' && task.assignedTo !== null 
+            ? (task.assignedTo as any)._id 
+            : task.assignedTo;
+          matchesAssignee = taskAssigneeId === me.id;
+        }
+
+        return matchesSearch && matchesStatus && matchesPriority && matchesType && matchesAssignee;
       })
       .sort((a, b) => {
         switch (sortBy) {
@@ -239,7 +250,7 @@ export default function ProgressTab() {
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         }
       });
-  }, [tasks, searchQuery, statusFilter, priorityFilter, typeFilter, sortBy]);
+  }, [tasks, searchQuery, statusFilter, priorityFilter, typeFilter, sortBy, assignedToMeOnly, me]);
 
   // Tasks to actually operate on for export (selected subset or all filtered)
   const exportTargets = useMemo(() => {
@@ -514,6 +525,18 @@ export default function ProgressTab() {
               <option value="priority-desc">Priority (High → Low)</option>
               <option value="priority-asc">Priority (Low → High)</option>
             </select>
+            <div className="flex items-center gap-2 md:col-span-1 pl-2">
+              <input
+                type="checkbox"
+                id="assignedToMe"
+                checked={assignedToMeOnly}
+                onChange={(e) => setAssignedToMeOnly(e.target.checked)}
+                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+              />
+              <label htmlFor="assignedToMe" className="text-xs text-foreground cursor-pointer select-none">
+                Assigned to me
+              </label>
+            </div>
           </div>
 
           {/* ── Selection Action Bar ──────────────────────────────── */}
@@ -645,12 +668,22 @@ export default function ProgressTab() {
                               >
                                 {task.title}
                               </span>
-                              {task.comments.length > 0 && (
-                                <span className="text-muted-foreground bg-muted/65 inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 font-mono text-[9px] mt-0.5">
-                                  <MessageSquare className="h-2.5 w-2.5" />
-                                  {task.comments.length}
-                                </span>
-                              )}
+                              <div className="flex flex-col gap-1 items-start mt-1">
+                                {task.comments.length > 0 && (
+                                  <span className="text-muted-foreground bg-muted/65 inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 font-mono text-[9px]">
+                                    <MessageSquare className="h-2.5 w-2.5" />
+                                    {task.comments.length}
+                                  </span>
+                                )}
+                                <div className="flex flex-wrap gap-2 text-[9px] text-muted-foreground font-mono">
+                                  {task.createdBy && (
+                                    <span>Created by: {task.createdBy.name || "Unknown"}</span>
+                                  )}
+                                  {task.assignedTo && (
+                                    <span>• Assigned to: {task.assignedTo.name || "Unknown"}</span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </TableCell>
 
@@ -777,7 +810,7 @@ export default function ProgressTab() {
                                           className="bg-muted/45 border border-border/45 rounded p-2.5 text-xs space-y-1"
                                         >
                                           <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
-                                            <span className="font-medium">{comment.userName || "Team Member"}</span>
+                                            <span className="font-medium">{comment.createdBy?.name || comment.userName || "Team Member"}</span>
                                             <span>
                                               {format(new Date(comment.createdAt), "MMM d, yyyy h:mm a")}
                                             </span>

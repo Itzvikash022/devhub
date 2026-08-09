@@ -9,6 +9,7 @@ export const ROUTES = {
 
   // Projects
   PROJECTS: "/projects",
+  INVITATIONS: "/invitations",
   PROJECT: (id: string) => `/projects/${id}`,
   PROJECT_NOTES: (id: string) => `/projects/${id}/notes`,
   PROJECT_DETAILS: (id: string) => `/projects/${id}/details`,
@@ -47,6 +48,7 @@ export const API_ROUTES = {
   // Projects
   PROJECTS: "/api/projects",
   PROJECT: (id: string) => `/api/projects/${id}`,
+  INVITATIONS: "/api/invitations",
 
   // Notes
   PROJECT_NOTES: (projectId: string) => `/api/projects/${projectId}/notes`,

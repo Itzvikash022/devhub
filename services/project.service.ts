@@ -34,7 +34,13 @@ export class ProjectService {
       throw new Error("NOT_FOUND");
     }
 
-    if (project.userId.toString() !== userId) {
+    const projectOwnerId = project.userId?._id?.toString() || project.userId?.toString();
+    const isOwner = projectOwnerId === userId;
+    const isShared = (project as any).sharedWith?.some(
+      (user: any) => (user?._id?.toString() || user?.toString()) === userId
+    );
+
+    if (!isOwner && !isShared) {
       throw new Error("FORBIDDEN");
     }
 
@@ -71,8 +77,12 @@ export class ProjectService {
    * Deletes a project, verifying ownership.
    */
   static async delete(userId: string, id: string): Promise<void> {
-    // Verify ownership first
-    await this.getById(userId, id);
+    // Verify ownership first (must be owner to delete)
+    const project = await this.getById(userId, id);
+    const projectOwnerId = project.userId?._id?.toString() || project.userId?.toString();
+    if (projectOwnerId !== userId) {
+      throw new Error("FORBIDDEN_NOT_OWNER");
+    }
 
     const deleted = await ProjectRepository.delete(id);
     if (!deleted) {
@@ -130,5 +140,23 @@ export class ProjectService {
    */
   static async touch(id: string): Promise<void> {
     await ProjectRepository.touch(id);
+  }
+
+  /**
+   * Adds a shared user to a project (invitation accepted).
+   * Verifies the inviter owns the project.
+   */
+  static async addSharedUser(inviterId: string, projectId: string, userIdToAdd: string): Promise<void> {
+    const project = await this.getById(inviterId, projectId);
+    const projectOwnerId = project.userId?._id?.toString() || project.userId?.toString();
+    
+    if (projectOwnerId !== inviterId) {
+      throw new Error("ONLY_OWNER_CAN_SHARE");
+    }
+
+    const updated = await ProjectRepository.addSharedUser(projectId, userIdToAdd);
+    if (!updated) {
+      throw new Error("FAILED_TO_ADD_USER");
+    }
   }
 }

@@ -33,11 +33,11 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ProjectSection, ProjectField } from "@/hooks/useProjects";
-import { ProjectDialog } from "@/components/dialogs/ProjectDialog";
-import {
   MoveSectionsDialog,
   getEstimatedCardHeight,
 } from "@/components/dialogs/MoveSectionsDialog";
+import { ProjectShareDialog } from "@/components/dialogs/ProjectShareDialog";
+import { Users } from "lucide-react";
 
 function renderFieldValue(field: ProjectField) {
   switch (field.type) {
@@ -103,6 +103,7 @@ export default function ProjectDetailsTab() {
   const { id: projectId } = useParams() as { id: string };
   const [isEditing, setIsEditing] = useState(false);
   const [projectEditOpen, setProjectEditOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const [editableSections, setEditableSections] = useState<ProjectSection[]>([]);
 
@@ -608,15 +609,26 @@ export default function ProjectDetailsTab() {
                     </CardTitle>
                     <CardDescription>General workspace summary and details.</CardDescription>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setProjectEditOpen(true)}
-                    className="h-8 gap-1 text-xs"
-                  >
-                    <Edit3 className="h-3.5 w-3.5" />
-                    Edit About
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShareDialogOpen(true)}
+                      className="h-8 gap-1 text-xs"
+                    >
+                      <Users className="h-3.5 w-3.5" />
+                      Share
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setProjectEditOpen(true)}
+                      className="h-8 gap-1 text-xs"
+                    >
+                      <Edit3 className="h-3.5 w-3.5" />
+                      Edit About
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <p className="text-foreground text-sm leading-relaxed whitespace-pre-wrap break-words">
@@ -657,13 +669,22 @@ export default function ProjectDetailsTab() {
                       {new Date(project.updatedAt).toLocaleDateString()}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="border-border/50 flex items-center gap-2 border-b pb-2">
                     <User className="text-muted-foreground h-4 w-4 shrink-0" />
                     <span className="text-foreground font-semibold">ID:</span>
                     <span className="ml-auto max-w-[120px] truncate" title={project._id}>
                       {project._id}
                     </span>
                   </div>
+                  {customDetails?.createdBy && (
+                    <div className="flex items-center gap-2">
+                      <User className="text-muted-foreground h-4 w-4 shrink-0" />
+                      <span className="text-foreground font-semibold">Details Added By:</span>
+                      <span className="ml-auto max-w-[120px] truncate">
+                        {customDetails.createdBy.name || "Unknown"}
+                      </span>
+                    </div>
+                  )}
                 </CardContent>
               </div>
             </Card>
@@ -775,6 +796,13 @@ export default function ProjectDetailsTab() {
             setEditableSections(reordered);
           }
         }}
+      />
+
+      {/* Share Project Dialog */}
+      <ProjectShareDialog
+        open={shareDialogOpen}
+        onOpenChange={setShareDialogOpen}
+        projectId={projectId}
       />
     </div>
   );

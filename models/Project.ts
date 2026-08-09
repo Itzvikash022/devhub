@@ -6,6 +6,7 @@ export interface IProject {
   description: string;
   status: "active" | "on-hold" | "archived";
   bugCounter: number;
+  sharedWith: mongoose.Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -49,6 +50,10 @@ const ProjectSchema: Schema = new Schema<IProjectDocument>(
       type: Number,
       default: 0,
       required: true,
+    },
+    sharedWith: {
+      type: [{ type: Schema.Types.ObjectId, ref: "User" }],
+      default: [],
     },
   },
   {

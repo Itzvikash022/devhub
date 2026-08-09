@@ -228,6 +228,12 @@ export default function PipelineTab() {
                               {item.notes}
                             </p>
                           )}
+                          
+                          {item.createdBy && (
+                            <p className="text-muted-foreground font-mono text-[9px] mt-1.5">
+                              Added by {item.createdBy.name || "Unknown"}
+                            </p>
+                          )}
                         </div>
 
                         {/* Action buttons */}

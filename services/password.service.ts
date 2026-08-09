@@ -17,6 +17,16 @@ export class PasswordService {
       throw new Error("NOT_FOUND");
     }
 
+    // If it's a project password, and it's shared, verify project access
+    if (password.projectId && password.isShared) {
+      try {
+        await ProjectService.getById(userId, password.projectId.toString());
+        return password; // User has access to the project and it's shared
+      } catch (e) {
+        // Fallback to direct ownership
+      }
+    }
+
     if (password.userId.toString() !== userId) {
       throw new Error("FORBIDDEN");
     }
@@ -40,6 +50,7 @@ export class PasswordService {
       url: data.url || null,
       category: data.category,
       notes: data.notes || "",
+      isShared: data.isShared || false,
     });
 
     if (data.projectId) {
@@ -84,6 +95,7 @@ export class PasswordService {
       category: data.category,
       projectId: data.projectId,
       notes: data.notes,
+      isShared: data.isShared,
     };
 
     if (data.secret) {

@@ -16,6 +16,7 @@ export const createTaskSchema = z.object({
   type: z.enum(["task", "bug"]).default("task"),
   area: z.string().max(100, "Area cannot exceed 100 characters").optional().nullable(),
   screenshots: z.array(z.string()).optional().default([]),
+  assignedTo: z.string().optional().nullable(),
 });
 
 export const updateTaskSchema = createTaskSchema.partial();

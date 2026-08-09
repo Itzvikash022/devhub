@@ -18,6 +18,7 @@ export interface IPipelineItem {
   url: string;
   environment: "production" | "development" | "staging" | null;
   notes: string;
+  createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -83,6 +84,12 @@ const PipelineItemSchema: Schema = new Schema<IPipelineItemDocument>(
       trim: true,
       default: "",
       maxlength: [500, "Notes cannot exceed 500 characters"],
+    },
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "Creator ID is required"],
+      index: true,
     },
   },
   {

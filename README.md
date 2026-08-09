@@ -217,6 +217,12 @@ When a task with a due date is created or updated, the service layer automatical
 
 ## Patch Notes
 
+### v2.4.2 — Progress Tracker Right-Click Context Menu
+- **Task Row Context Menu**: Right-clicking any row in the Progress Tracker now opens a native-style context menu with two quick actions:
+  - **Copy Task** — Copies a formatted text summary of the item (ID badge, title, type, status, priority, due date, and description) to the clipboard.
+  - **Mark as Done** — Instantly patches the task status to `done` without opening the edit dialog. Disabled with a visual cue when the item is already completed.
+- Context menu closes on any outside click or by right-clicking away from the row.
+
 ### v2.4.1 — Image Vault Production Hotfix
 - **R2 URL Proxy Coverage**: Expanded `getDisplayUrl` utility to intercept and proxy all Cloudflare R2 public URL patterns (`.r2.dev/`, `.r2.cloudflarestorage.com/`, and placeholder domains) through the secure `/api/r2-proxy` backend endpoint — previously only the local placeholder domain was caught, causing images to fail in the deployed environment.
 - **Image Vault Thumbnail Rendering**: Fixed `ImageVaultView` to run thumbnails through `getDisplayUrl` instead of rendering raw database URLs directly, restoring visibility of all pre-existing images in production.

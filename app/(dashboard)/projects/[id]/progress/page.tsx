@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import {
   useTasksList,
   useDeleteTask,
+  useUpdateTask,
   useAddComment,
   TaskData,
 } from "@/hooks/useTasks";
@@ -183,9 +184,13 @@ export default function ProgressTab() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; task: TaskData } | null>(null);
+
   // Queries & Mutations
   const { data: tasks = [], isLoading, error } = useTasksList(projectId);
   const { mutate: deleteTask, isPending: isDeletePending } = useDeleteTask(projectId);
+  const { mutate: updateTask } = useUpdateTask(projectId);
 
   const selectedTask = useMemo(
     () => tasks.find((t) => t._id === selectedTaskId),
@@ -293,6 +298,44 @@ export default function ProgressTab() {
     e?.stopPropagation();
     setSelectedTaskId(task._id);
     setDialogOpen(true);
+  };
+
+  // ── Context menu handlers ─────────────────────────────────────────
+  const handleContextMenu = (e: React.MouseEvent, task: TaskData) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY, task });
+  };
+
+  const handleContextCopyTask = () => {
+    if (!contextMenu) return;
+    const task = contextMenu.task;
+    const itemId = task.type === "bug"
+      ? `B-${String(task.bugNumber || 0).padStart(4, "0")}`
+      : `T-${String(task.bugNumber || 0).padStart(4, "0")}`;
+    const text = [
+      `${itemId}: ${task.title}`,
+      `Type: ${(task.type || "task").toUpperCase()} | Status: ${task.status.toUpperCase()} | Priority: ${task.priority.toUpperCase()}`,
+      task.dueDate ? `Due: ${format(new Date(task.dueDate), "MMM d, yyyy")}` : "Due: N/A",
+      task.description ? `\n${task.description}` : "",
+    ].filter(Boolean).join("\n");
+    navigator.clipboard.writeText(text).then(() => toast.success("Task copied to clipboard!"));
+    setContextMenu(null);
+  };
+
+  const handleContextMarkDone = () => {
+    if (!contextMenu) return;
+    const task = contextMenu.task;
+    if (task.status === "done") {
+      toast.info("Task is already marked as done.");
+      setContextMenu(null);
+      return;
+    }
+    updateTask(
+      { id: task._id, data: { status: "done" } },
+      { onSuccess: () => toast.success(`"${task.title}" marked as done!`) }
+    );
+    setContextMenu(null);
   };
 
   const handleOpenDelete = (id: string, e?: React.MouseEvent) => {
@@ -555,6 +598,7 @@ export default function ProgressTab() {
                         <TableRow
                           className={`border-border/50 group border-b transition-colors cursor-pointer ${isChecked ? "bg-primary/5" : ""}`}
                           onClick={() => toggleExpand(task._id)}
+                          onContextMenu={(e) => handleContextMenu(e, task)}
                         >
                           {/* Export selection checkbox */}
                           <TableCell className="py-4 text-center align-top" onClick={(e) => e.stopPropagation()}>
@@ -791,6 +835,42 @@ export default function ProgressTab() {
         src={getDisplayUrl(screenshotPreviewSrc || "")}
         name="Screenshot Preview"
       />
+
+      {/* ── Right-click Context Menu ────────────────────────────────── */}
+      {contextMenu && (
+        <>
+          {/* Backdrop to close on click-outside */}
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setContextMenu(null)}
+            onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
+          />
+          <div
+            className="fixed z-50 min-w-[160px] rounded-md border border-border bg-popover shadow-lg py-1 text-sm"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+          >
+            <button
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-foreground hover:bg-muted transition-colors"
+              onClick={handleContextCopyTask}
+            >
+              <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+              Copy Task
+            </button>
+            <button
+              className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors ${
+                contextMenu.task.status === "done"
+                  ? "text-muted-foreground cursor-not-allowed"
+                  : "text-foreground hover:bg-muted"
+              }`}
+              onClick={handleContextMarkDone}
+              disabled={contextMenu.task.status === "done"}
+            >
+              <Check className="h-3.5 w-3.5 text-muted-foreground" />
+              {contextMenu.task.status === "done" ? "Already Done" : "Mark as Done"}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

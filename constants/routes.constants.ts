@@ -13,6 +13,7 @@ export const ROUTES = {
   PROJECT_NOTES: (id: string) => `/projects/${id}/notes`,
   PROJECT_DETAILS: (id: string) => `/projects/${id}/details`,
   PROJECT_PROGRESS: (id: string) => `/projects/${id}/progress`,
+  PROJECT_BUGS: (id: string) => `/projects/${id}/bugs`,
   PROJECT_PIPELINE: (id: string) => `/projects/${id}/pipeline`,
   PROJECT_IMAGES: (id: string) => `/projects/${id}/images`,
   PROJECT_PASSWORDS: (id: string) => `/projects/${id}/passwords`,

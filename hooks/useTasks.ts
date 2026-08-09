@@ -22,6 +22,11 @@ export interface TaskData {
   priority: "low" | "medium" | "high";
   dueDate: string | null;
   comments: CommentData[];
+  type?: "task" | "bug";
+  bugNumber?: number | null;
+  area?: string | null;
+  screenshots?: string[];
+  closedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

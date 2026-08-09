@@ -5,6 +5,7 @@ export interface IProject {
   name: string;
   description: string;
   status: "active" | "on-hold" | "archived";
+  bugCounter: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,6 +44,11 @@ const ProjectSchema: Schema = new Schema<IProjectDocument>(
       default: "active",
       required: true,
       index: true,
+    },
+    bugCounter: {
+      type: Number,
+      default: 0,
+      required: true,
     },
   },
   {

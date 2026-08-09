@@ -217,6 +217,20 @@ When a task with a due date is created or updated, the service layer automatical
 
 ## Patch Notes
 
+### v2.4.0 — Unified Progress Tracker, Bug Management Infrastructure, Left ID Badges, and Image Vault Integration
+- **Unified Progress Tracker**: Consolidated Tasks and Bugs into a single generalized Progress board, eliminating the redundant Bugs tab navigation and standalone bugs page route.
+- **Bug System & Cloudflare R2 Infrastructure**: 
+  - **Local R2 Media Proxy (`route.ts`)**: Built a secure API stream route that fetches and streams attachments from Cloudflare R2 directly, avoiding browser DNS/public URL resolution limits.
+  - **Automated R2 Daily Cleanup Cron**: Created a Vercel Cron-triggered routine that queries tasks/bugs closed for over 30 days, purges their screenshots from R2, and clears database metadata.
+  - **Immediate R2 Resource Release**: Wired task and project deletion handlers to purge screenshot directories from R2 instantly, preventing orphaned storage files.
+  - **Task Screenshot Zoom Previews**: Integrated click-to-preview overlay panels with zoom and pan support.
+- **Far-Left ID Badge Column**: Added a far-left monospace identifier column mapping unique IDs (`T-0001` in violet and `B-0002` in red) to cleanly distinguish items. Removed inline ID prefixes from task titles.
+- **Dual Creation Action Buttons**: Split creation triggers at the top of the Progress tab into separate primary buttons: `+ New Task` (violet theme) and `+ New Bug` (red/crimson theme) to open the modal pre-configured.
+- **General Counter & Auto-Backfill**: Integrated a shared sequential counter (`bugNumber`) for both tasks and bugs. Implemented a database backfill check upon project retrieval to automatically populate serial IDs on older legacy tasks.
+- **Select from Image Vault**: Added a "Select from Vault" overlay selector to task screenshot fields, allowing users to query, search, and import unencrypted pre-uploaded images from the project gallery without double uploading.
+- **Dialog Height Scrollbar Fixes**: Resolved vertical viewport overflow and cut-off buttons in the Image Vault selector and Export Preview modals by shifting them to scroll-bounded vertical flex wrappers.
+- **No Area/Screenshot Empty State**: Rendered a placeholder text: *"No area module or screenshots provided."* inside the left details card of the expanded progress row when no module or screenshots are attached.
+
 ### v2.3.0 — Sidebar Reorganization, Project-Scoped Scoping & Bug Fixes
 - **Sidebar Project-Specific Layout**: Reorganized project mode sidebar items into dedicated Navigation and Vault sections, matching the Global Mode design layout for a consistent and premium user experience.
 - **Dashboard Project Scoping**: Updated the dashboard API and page to scope activity, calendar deadlines, and high priority tasks to the currently active project workspace. Conditionally hid the global "Recent Projects" list and "+ New project" creation controls.

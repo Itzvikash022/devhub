@@ -13,6 +13,9 @@ export const createTaskSchema = z.object({
     .preprocess((val) => (val ? new Date(val as string) : null), z.date().nullable())
     .optional()
     .default(null),
+  type: z.enum(["task", "bug"]).default("task"),
+  area: z.string().max(100, "Area cannot exceed 100 characters").optional().nullable(),
+  screenshots: z.array(z.string()).optional().default([]),
 });
 
 export const updateTaskSchema = createTaskSchema.partial();
@@ -27,3 +30,12 @@ export const createCommentSchema = z.object({
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;
+
+export const presignScreenshotSchema = z.object({
+  fileName: z.string().min(1, "File name is required"),
+  fileType: z.string().min(1, "File type is required"),
+  bugNumber: z.number().int().positive("Bug number is required"),
+});
+
+export type PresignScreenshotInput = z.infer<typeof presignScreenshotSchema>;
+

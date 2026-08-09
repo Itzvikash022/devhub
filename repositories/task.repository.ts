@@ -38,6 +38,11 @@ export class TaskRepository {
     status: string;
     priority: string;
     dueDate: Date | null;
+    type?: string;
+    bugNumber?: number | null;
+    area?: string | null;
+    screenshots?: string[];
+    closedAt?: Date | null;
   }): Promise<ITaskDocument> {
     await connectToDatabase();
     const task = new Task({
@@ -58,6 +63,11 @@ export class TaskRepository {
       status: string;
       priority: string;
       dueDate: Date | null;
+      type: string;
+      bugNumber: number | null;
+      area: string | null;
+      screenshots: string[];
+      closedAt: Date | null;
     }>
   ): Promise<ITaskDocument | null> {
     const parseResult = objectIdSchema.safeParse(id);

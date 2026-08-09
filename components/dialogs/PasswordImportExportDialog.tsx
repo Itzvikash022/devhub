@@ -173,7 +173,7 @@ export function PasswordImportExportDialog({
       const line = lines[i].trim();
       if (!line) continue;
 
-      let tokens = parseCSVLine(line).map((t) => t.trim());
+      const tokens = parseCSVLine(line).map((t) => t.trim());
 
       // Trim trailing empty tokens (e.g. from trailing comma like `label,user,pass,`)
       while (tokens.length > 0 && tokens[tokens.length - 1] === "") {
@@ -223,7 +223,7 @@ export function PasswordImportExportDialog({
 
           // Username and password both fields are required
           if (!usernameToken || !passwordToken) {
-            let missingFields = [];
+            const missingFields = [];
             if (!usernameToken) missingFields.push("username/ID");
             if (!passwordToken) missingFields.push("password");
             errors.push(

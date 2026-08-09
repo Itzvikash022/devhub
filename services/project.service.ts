@@ -8,6 +8,7 @@ import { PasswordRepository } from "@/repositories/password.repository";
 import { DocumentRepository } from "@/repositories/document.repository";
 import { CreateProjectInput, UpdateProjectInput } from "@/schemas/project.schema";
 import { IProjectDocument } from "@/models/Project";
+import { Task } from "@/models/Task";
 import { deleteObject } from "@/lib/r2";
 
 export class ProjectService {
@@ -80,6 +81,22 @@ export class ProjectService {
 
     // Cascade delete project details
     await ProjectDetailRepository.deleteByProjectId(id);
+
+    // Find all bugs in the project and delete their screenshots from R2
+    const projectBugs = await Task.find({ projectId: id, type: "bug" }).exec();
+    for (const bug of projectBugs) {
+      if (bug.screenshots && bug.screenshots.length > 0) {
+        for (const url of bug.screenshots) {
+          try {
+            const publicUrl = process.env.CLOUDFLARE_R2_PUBLIC_URL || "";
+            const r2Key = publicUrl ? url.replace(`${publicUrl}/`, "") : url;
+            await deleteObject(r2Key);
+          } catch (err) {
+            console.error(`Failed to delete bug screenshot ${url} during project deletion:`, err);
+          }
+        }
+      }
+    }
 
     // Cascade delete tasks
     await TaskRepository.deleteByProjectId(id);

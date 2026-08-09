@@ -1,8 +1,10 @@
 import { TaskRepository } from "@/repositories/task.repository";
 import { CalendarEventRepository } from "@/repositories/calendar-event.repository";
+import { ProjectRepository } from "@/repositories/project.repository";
 import { ProjectService } from "@/services/project.service";
 import { CreateTaskInput, UpdateTaskInput } from "@/schemas/task.schema";
 import { ITaskDocument } from "@/models/Task";
+import { deleteObject } from "@/lib/r2";
 
 export class TaskService {
   /**
@@ -30,6 +32,12 @@ export class TaskService {
     // Verify project ownership
     await ProjectService.getById(userId, projectId);
 
+    const bugNumber = await ProjectRepository.incrementBugCounter(projectId);
+    let closedAt: Date | null = null;
+    if (data.status === "done") {
+      closedAt = new Date();
+    }
+
     const task = await TaskRepository.create({
       projectId,
       title: data.title,
@@ -37,6 +45,11 @@ export class TaskService {
       status: data.status || "todo",
       priority: data.priority || "medium",
       dueDate: data.dueDate || null,
+      type: data.type || "task",
+      bugNumber,
+      area: data.area || null,
+      screenshots: data.screenshots || [],
+      closedAt,
     });
 
     // Calendar sync: Add deadline if task has due date and is not completed
@@ -62,14 +75,27 @@ export class TaskService {
     return this.verifyTaskOwnership(userId, id);
   }
 
-  /**
-   * Lists all tasks for a project, verifying project ownership.
-   */
   static async listByProjectId(userId: string, projectId: string): Promise<ITaskDocument[]> {
     // Verify project ownership
     await ProjectService.getById(userId, projectId);
 
-    return TaskRepository.findAllByProjectId(projectId);
+    const tasks = await TaskRepository.findAllByProjectId(projectId);
+    
+    // Backfill any tasks missing bugNumber (general itemNumber)
+    let projectTouched = false;
+    for (const task of tasks) {
+      if (task.bugNumber === null || task.bugNumber === undefined) {
+        const nextNum = await ProjectRepository.incrementBugCounter(projectId);
+        task.bugNumber = nextNum;
+        await task.save();
+        projectTouched = true;
+      }
+    }
+
+    if (projectTouched) {
+      return TaskRepository.findAllByProjectId(projectId);
+    }
+    return tasks;
   }
 
   /**
@@ -78,7 +104,22 @@ export class TaskService {
   static async update(userId: string, id: string, data: UpdateTaskInput): Promise<ITaskDocument> {
     const task = await this.verifyTaskOwnership(userId, id);
 
-    const updated = await TaskRepository.update(id, data);
+    let closedAtUpdate = {};
+    if (data.status !== undefined) {
+      const wasClosed = task.status === "done";
+      const isClosed = data.status === "done";
+      if (isClosed && !wasClosed) {
+        closedAtUpdate = { closedAt: new Date() };
+      } else if (!isClosed && wasClosed) {
+        closedAtUpdate = { closedAt: null };
+      }
+    }
+
+    const updated = await TaskRepository.update(id, {
+      ...data,
+      ...closedAtUpdate,
+    });
+    
     if (!updated) {
       throw new Error("UPDATE_FAILED");
     }
@@ -108,6 +149,19 @@ export class TaskService {
    */
   static async delete(userId: string, id: string): Promise<void> {
     const task = await this.verifyTaskOwnership(userId, id);
+
+    // If it's a bug with screenshots, delete the R2 objects
+    if (task.type === "bug" && task.screenshots && task.screenshots.length > 0) {
+      for (const url of task.screenshots) {
+        try {
+          const publicUrl = process.env.CLOUDFLARE_R2_PUBLIC_URL || "";
+          const r2Key = publicUrl ? url.replace(`${publicUrl}/`, "") : url;
+          await deleteObject(r2Key);
+        } catch (err) {
+          console.error(`Failed to delete bug screenshot ${url} from R2 during delete:`, err);
+        }
+      }
+    }
 
     const deleted = await TaskRepository.delete(id);
     if (!deleted) {

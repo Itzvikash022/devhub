@@ -96,4 +96,27 @@ export class ProjectRepository {
     await connectToDatabase();
     await Project.findByIdAndUpdate(id, { updatedAt: new Date() }).exec();
   }
+
+  /**
+   * Atomically increments and returns the bug counter of a project.
+   */
+  static async incrementBugCounter(id: string): Promise<number> {
+    const parseResult = objectIdSchema.safeParse(id);
+    if (!parseResult.success) {
+      throw new Error("INVALID_ID");
+    }
+
+    await connectToDatabase();
+    const updated = await Project.findByIdAndUpdate(
+      id,
+      { $inc: { bugCounter: 1 } },
+      { new: true }
+    ).exec();
+
+    if (!updated) {
+      throw new Error("PROJECT_NOT_FOUND");
+    }
+
+    return updated.bugCounter;
+  }
 }

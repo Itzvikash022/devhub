@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       const secret = item.secret?.trim(); // trim extra spaces in password
 
       if (!username || !secret) {
-        let missing = [];
+        const missing = [];
         if (!username) missing.push("username/ID");
         if (!secret) missing.push("password");
         results.failedCount++;

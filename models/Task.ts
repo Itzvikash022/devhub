@@ -13,6 +13,11 @@ export interface ITask {
   priority: "low" | "medium" | "high";
   dueDate: Date | null;
   comments: IComment[];
+  type: "task" | "bug";
+  bugNumber?: number | null;
+  area?: string | null;
+  screenshots: string[];
+  closedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -78,6 +83,35 @@ const TaskSchema: Schema = new Schema<ITaskDocument>(
     comments: {
       type: [CommentSchema],
       default: [],
+    },
+    type: {
+      type: String,
+      enum: {
+        values: ["task", "bug"],
+        message: "Type must be task or bug",
+      },
+      default: "task",
+      required: true,
+      index: true,
+    },
+    bugNumber: {
+      type: Number,
+      default: null,
+      index: true,
+    },
+    area: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    screenshots: {
+      type: [String],
+      default: [],
+    },
+    closedAt: {
+      type: Date,
+      default: null,
+      index: true,
     },
   },
   {

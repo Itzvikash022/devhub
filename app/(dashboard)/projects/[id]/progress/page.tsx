@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, Fragment, useEffect } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { useParams } from "next/navigation";
 import {
   useTasksList,
@@ -15,6 +15,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
@@ -55,14 +56,20 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { getDisplayUrl } from "@/lib/utils";
+import { ImagePreviewDialog } from "@/components/dialogs/ImagePreviewDialog";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildCSV(tasks: TaskData[]): string {
   const rows = [
-    ["Title", "Description", "Status", "Priority", "Due Date", "Comments Count", "Created At"],
+    ["Item ID", "Title", "Type", "Description", "Status", "Priority", "Due Date", "Comments Count", "Created At"],
     ...tasks.map((task) => [
+      task.type === "bug"
+        ? `B-${String(task.bugNumber || 0).padStart(4, "0")}`
+        : `T-${String(task.bugNumber || 0).padStart(4, "0")}`,
       task.title || "Untitled",
+      task.type.toUpperCase(),
       (task.description || "").replace(/"/g, '""'),
       task.status.toUpperCase(),
       task.priority.toUpperCase(),
@@ -76,10 +83,14 @@ function buildCSV(tasks: TaskData[]): string {
 
 function buildMarkdown(tasks: TaskData[]): string {
   return tasks
-    .map((task, idx) => {
+    .map((task) => {
       const statusBox = task.status === "done" ? "[x]" : "[ ]";
       const dueText = task.dueDate ? format(new Date(task.dueDate), "yyyy-MM-dd") : "N/A";
-      let md = `## ${idx + 1}. ${statusBox} ${task.title}\n`;
+      const itemId = task.type === "bug"
+        ? `B-${String(task.bugNumber || 0).padStart(4, "0")}`
+        : `T-${String(task.bugNumber || 0).padStart(4, "0")}`;
+      let md = `## ${itemId}: ${statusBox} ${task.title}\n`;
+      md += `- **Type:** ${task.type.toUpperCase()}\n`;
       md += `- **Status:** ${task.status.toUpperCase()}\n`;
       md += `- **Priority:** ${task.priority.toUpperCase()}\n`;
       md += `- **Due Date:** ${dueText}\n\n`;
@@ -87,7 +98,7 @@ function buildMarkdown(tasks: TaskData[]): string {
       if (task.comments?.length) {
         md += `### Comments\n`;
         task.comments.forEach((c) => {
-          md += `- *${c.userName}* (${format(new Date(c.createdAt), "yyyy-MM-dd HH:mm")}): ${c.text}\n`;
+          md += `- *Comment* (${format(new Date(c.createdAt), "yyyy-MM-dd HH:mm")}): ${c.text}\n`;
         });
         md += "\n";
       }
@@ -98,17 +109,17 @@ function buildMarkdown(tasks: TaskData[]): string {
 
 function buildPreviewText(tasks: TaskData[]): string {
   return tasks
-    .map((task, idx) => {
+    .map((task) => {
       const statusBox = task.status === "done" ? "✅" : "⬜";
       const dueText = task.dueDate ? format(new Date(task.dueDate), "MMM d, yyyy") : "No due date";
-      let text = `${idx + 1}. ${statusBox} ${task.title}\n`;
-      text += `   Status: ${task.status} | Priority: ${task.priority} | Due: ${dueText}\n`;
+      const itemId = task.type === "bug"
+        ? `B-${String(task.bugNumber || 0).padStart(4, "0")}`
+        : `T-${String(task.bugNumber || 0).padStart(4, "0")}`;
+      let text = `${itemId} ${statusBox} ${task.title}\n`;
+      text += `   Type: ${task.type} | Status: ${task.status} | Priority: ${task.priority} | Due: ${dueText}\n`;
       if (task.description?.trim()) text += `   ${task.description.trim()}\n`;
       if (task.comments?.length) {
-        text += `   Comments (${task.comments.length}):\n`;
-        task.comments.forEach((c) => {
-          text += `     • ${c.userName}: ${c.text}\n`;
-        });
+        text += `   Comments (${task.comments.length})\n`;
       }
       return text;
     })
@@ -127,129 +138,20 @@ function downloadBlob(content: string, filename: string, mimeType: string) {
   URL.revokeObjectURL(url);
 }
 
-// ─── Export Preview Modal ─────────────────────────────────────────────────────
-
-interface ExportPreviewProps {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  tasks: TaskData[];
+function getPriorityWeight(priority: string): number {
+  switch (priority) {
+    case "high":
+      return 3;
+    case "medium":
+      return 2;
+    case "low":
+      return 1;
+    default:
+      return 0;
+  }
 }
 
-function ExportPreviewModal({ open, onOpenChange, tasks }: ExportPreviewProps) {
-  const [copied, setCopied] = useState(false);
-  const preview = useMemo(() => buildPreviewText(tasks), [tasks]);
-  const markdown = useMemo(() => buildMarkdown(tasks), [tasks]);
-
-  const handleCopy = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      toast.success("Copied to clipboard!");
-      setTimeout(() => setCopied(false), 2200);
-    } catch {
-      toast.error("Failed to copy.");
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-3xl !w-[92vw] max-h-[88vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="flex flex-row items-center justify-between gap-3 px-5 pt-4 pb-3 border-b border-border/40">
-          <div>
-            <DialogTitle className="text-sm font-semibold">Export Preview</DialogTitle>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              {tasks.length} task{tasks.length !== 1 ? "s" : ""} selected
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 mr-7">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 text-xs px-3"
-              onClick={() => handleCopy(preview)}
-            >
-              {copied ? <Check className="h-3.5 w-3.5 mr-1.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
-              Copy Plain Text
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 text-xs px-3"
-              onClick={() => handleCopy(markdown)}
-            >
-              <Copy className="h-3.5 w-3.5 mr-1.5" />
-              Copy Markdown
-            </Button>
-          </div>
-        </DialogHeader>
-
-        <div className="flex-1 overflow-y-auto p-5 space-y-3 min-h-0">
-          {tasks.map((task, idx) => {
-            const dueText = task.dueDate
-              ? format(new Date(task.dueDate), "MMM d, yyyy")
-              : "No due date";
-            const isDone = task.status === "done";
-            return (
-              <div
-                key={task._id}
-                className="rounded-lg border border-border/50 bg-card p-4 space-y-2"
-              >
-                {/* Row 1: index + title */}
-                <div className="flex items-start gap-2">
-                  <span className="font-mono text-[11px] text-muted-foreground shrink-0 mt-0.5">
-                    {idx + 1}.
-                  </span>
-                  <span
-                    className={`text-sm font-semibold ${isDone ? "line-through text-muted-foreground" : "text-foreground"}`}
-                  >
-                    {task.title}
-                  </span>
-                </div>
-
-                {/* Row 2: badges */}
-                <div className="flex items-center gap-2 flex-wrap pl-5">
-                  <TaskStatusBadge status={task.status} />
-                  <PriorityBadge priority={task.priority} />
-                  <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1">
-                    <Calendar className="h-3 w-3" /> {dueText}
-                  </span>
-                  {task.comments?.length > 0 && (
-                    <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1">
-                      <MessageSquare className="h-3 w-3" /> {task.comments.length}
-                    </span>
-                  )}
-                </div>
-
-                {/* Description */}
-                {task.description?.trim() && (
-                  <p className="pl-5 text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                    {task.description}
-                  </p>
-                )}
-
-                {/* Comments */}
-                {task.comments?.length > 0 && (
-                  <div className="pl-5 space-y-1.5 pt-1 border-t border-border/30">
-                    {task.comments.map((c, ci) => (
-                      <div key={c._id || ci} className="text-[11px] text-muted-foreground">
-                        <span className="font-semibold text-foreground/80">{c.userName}</span>
-                        {" · "}
-                        <span>{format(new Date(c.createdAt), "MMM d, h:mm a")}</span>
-                        <p className="mt-0.5 text-foreground/70">{c.text}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function ProgressTab() {
   const { id: projectId } = useParams() as { id: string };
@@ -260,7 +162,12 @@ export default function ProgressTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todo");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("dueDate-asc");
+
+  // Screenshot preview dialog states
+  const [screenshotPreviewSrc, setScreenshotPreviewSrc] = useState<string | null>(null);
+  const [screenshotPreviewOpen, setScreenshotPreviewOpen] = useState(false);
 
   // Expand state
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
@@ -269,8 +176,9 @@ export default function ProgressTab() {
   const [selectedForExport, setSelectedForExport] = useState<Set<string>>(new Set());
   const [previewOpen, setPreviewOpen] = useState(false);
 
-  // Dialog state
+  // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogDefaultType, setDialogDefaultType] = useState<"task" | "bug">("task");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
@@ -285,36 +193,48 @@ export default function ProgressTab() {
   );
 
   // ── Filtering & Sorting ───────────────────────────────────────────
-  const getPriorityWeight = (p: string) =>
-    p === "high" ? 3 : p === "medium" ? 2 : p === "low" ? 1 : 0;
+  const filteredAndSortedTasks = useMemo(() => {
+    return tasks
+      .filter((task) => {
+        const matchesSearch =
+          task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (task.description || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (task.area || "").toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesStatus = statusFilter === "all" || task.status === statusFilter;
+        const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter;
 
-  const filteredAndSortedTasks = tasks
-    .filter((task) => {
-      const matchesSearch =
-        task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        task.description.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter === "all" || task.status === statusFilter;
-      const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter;
-      return matchesSearch && matchesStatus && matchesPriority;
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case "dueDate-asc":
-          if (!a.dueDate) return 1;
-          if (!b.dueDate) return -1;
-          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-        case "dueDate-desc":
-          if (!a.dueDate) return 1;
-          if (!b.dueDate) return -1;
-          return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
-        case "priority-desc":
-          return getPriorityWeight(b.priority) - getPriorityWeight(a.priority);
-        case "priority-asc":
-          return getPriorityWeight(a.priority) - getPriorityWeight(b.priority);
-        default:
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      }
-    });
+        let matchesType = true;
+        if (typeFilter === "tasks") {
+          matchesType = task.type === "task";
+        } else if (typeFilter === "bugs") {
+          matchesType = task.type === "bug";
+        }
+
+        return matchesSearch && matchesStatus && matchesPriority && matchesType;
+      })
+      .sort((a, b) => {
+        switch (sortBy) {
+          case "createdAt-desc":
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          case "dueDate-asc":
+            if (!a.dueDate && !b.dueDate) return 0;
+            if (!a.dueDate) return 1;
+            if (!b.dueDate) return -1;
+            return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+          case "dueDate-desc":
+            if (!a.dueDate && !b.dueDate) return 0;
+            if (!a.dueDate) return 1;
+            if (!b.dueDate) return -1;
+            return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
+          case "priority-desc":
+            return getPriorityWeight(b.priority) - getPriorityWeight(a.priority);
+          case "priority-asc":
+            return getPriorityWeight(a.priority) - getPriorityWeight(b.priority);
+          default:
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        }
+      });
+  }, [tasks, searchQuery, statusFilter, priorityFilter, typeFilter, sortBy]);
 
   // Tasks to actually operate on for export (selected subset or all filtered)
   const exportTargets = useMemo(() => {
@@ -357,7 +277,14 @@ export default function ProgressTab() {
   const handleOpenPreview = () => setPreviewOpen(true);
 
   // ── Task actions ──────────────────────────────────────────────────
-  const handleOpenCreate = () => {
+  const handleOpenCreateTask = () => {
+    setDialogDefaultType("task");
+    setSelectedTaskId(null);
+    setDialogOpen(true);
+  };
+
+  const handleOpenCreateBug = () => {
+    setDialogDefaultType("bug");
     setSelectedTaskId(null);
     setDialogOpen(true);
   };
@@ -458,9 +385,22 @@ export default function ProgressTab() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button size="sm" onClick={handleOpenCreate} className="shrink-0 gap-1.5 h-9">
+          <Button
+            size="sm"
+            onClick={handleOpenCreateTask}
+            className="shrink-0 gap-1.5 h-9 bg-[#4F46C7] hover:bg-[#4F46C7]/90 text-white font-sans text-xs"
+          >
             <Plus className="h-4 w-4" />
             New Task
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={handleOpenCreateBug}
+            className="shrink-0 gap-1.5 h-9 bg-red-600 hover:bg-red-700 text-white font-sans text-xs"
+          >
+            <Plus className="h-4 w-4" />
+            New Bug
           </Button>
         </div>
       </div>
@@ -472,14 +412,14 @@ export default function ProgressTab() {
               icon={CheckSquare}
               title="No tasks yet"
               description="Keep track of what needs to be done. Create your first task to start tracking progress."
-              action={{ label: "Create Task", onClick: handleOpenCreate }}
+              action={{ label: "Create Task", onClick: handleOpenCreateTask }}
             />
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
           {/* ── Filters Bar ──────────────────────────────────────── */}
-          <div className="bg-card border-border grid grid-cols-1 gap-3 rounded-md border p-3 sm:grid-cols-2 md:grid-cols-5">
+          <div className="bg-card border-border grid grid-cols-1 gap-3 rounded-md border p-3 sm:grid-cols-2 md:grid-cols-6">
             <div className="relative md:col-span-2">
               <Search className="text-muted-foreground absolute top-2.5 left-2.5 h-4 w-4" />
               <Input
@@ -511,6 +451,15 @@ export default function ProgressTab() {
               <option value="high">High</option>
             </select>
             <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="border-input bg-background text-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-xs shadow-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+            >
+              <option value="all">All Items</option>
+              <option value="tasks">Tasks Only</option>
+              <option value="bugs">Bugs Only</option>
+            </select>
+            <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               className="border-input bg-background text-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-xs shadow-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
@@ -527,7 +476,7 @@ export default function ProgressTab() {
           {hasSelection && (
             <div className="flex items-center gap-3 px-3 py-2 bg-primary/8 border border-primary/20 rounded-lg">
               <span className="text-xs font-semibold text-primary">
-                {selectedForExport.size} task{selectedForExport.size !== 1 ? "s" : ""} selected for export
+                {selectedForExport.size} item{selectedForExport.size !== 1 ? "s" : ""} selected for export
               </span>
               <div className="flex items-center gap-2 ml-auto">
                 <button
@@ -562,8 +511,13 @@ export default function ProgressTab() {
                       )}
                     </button>
                   </TableHead>
-                  <TableHead className="w-[45%] font-mono text-[10px] font-semibold tracking-wider">
-                    Task
+                  {/* ID Column */}
+                  <TableHead className="w-24 font-mono text-[10px] font-semibold tracking-wider">
+                    ID
+                  </TableHead>
+                  {/* Title / Summary */}
+                  <TableHead className="w-[38%] font-mono text-[10px] font-semibold tracking-wider">
+                    Title / Summary
                   </TableHead>
                   <TableHead className="w-28 font-mono text-[10px] font-semibold tracking-wider">
                     Status
@@ -582,14 +536,15 @@ export default function ProgressTab() {
               <TableBody>
                 {filteredAndSortedTasks.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-muted-foreground py-8 text-center text-xs">
-                      No tasks matching criteria.
+                    <TableCell colSpan={7} className="text-muted-foreground py-8 text-center text-xs">
+                      No items matching filters.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredAndSortedTasks.map((task) => {
                     const isExpanded = !!expandedTasks[task._id];
                     const isChecked = selectedForExport.has(task._id);
+
                     const isOverdue =
                       task.dueDate &&
                       new Date(task.dueDate).getTime() < now.getTime() &&
@@ -598,10 +553,11 @@ export default function ProgressTab() {
                     return (
                       <Fragment key={task._id}>
                         <TableRow
-                          className={`border-border/50 group border-b transition-colors ${isChecked ? "bg-primary/5" : ""}`}
+                          className={`border-border/50 group border-b transition-colors cursor-pointer ${isChecked ? "bg-primary/5" : ""}`}
+                          onClick={() => toggleExpand(task._id)}
                         >
                           {/* Export selection checkbox */}
-                          <TableCell className="py-4 text-center align-top">
+                          <TableCell className="py-4 text-center align-top" onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
                               onClick={(e) => {
@@ -619,12 +575,22 @@ export default function ProgressTab() {
                             </button>
                           </TableCell>
 
+                          {/* ID Badge Column */}
+                          <TableCell className="py-4 align-top">
+                            {task.type === "bug" ? (
+                              <span className="font-mono text-[11px] font-semibold text-red-600 bg-red-50 dark:bg-red-950/30 dark:text-red-400 px-1.5 py-0.5 rounded border border-red-100 dark:border-red-900">
+                                B-{String(task.bugNumber || 0).padStart(4, "0")}
+                              </span>
+                            ) : (
+                              <span className="font-mono text-[11px] font-semibold text-[#4F46C7] bg-[#4F46C7]/5 px-1.5 py-0.5 rounded border border-[#4F46C7]/15">
+                                T-{String(task.bugNumber || 0).padStart(4, "0")}
+                              </span>
+                            )}
+                          </TableCell>
+
                           {/* Title and expandable trigger */}
                           <TableCell className="py-4 align-top whitespace-normal break-words overflow-hidden">
-                            <div
-                              className="flex items-start gap-2 cursor-pointer select-none group/title"
-                              onClick={() => toggleExpand(task._id)}
-                            >
+                            <div className="flex items-start gap-2 group/title">
                               <span
                                 className={`font-sans text-sm font-medium transition-colors break-words whitespace-normal flex-1 ${
                                   task.status === "done"
@@ -643,45 +609,42 @@ export default function ProgressTab() {
                             </div>
                           </TableCell>
 
-                          {/* Status badge */}
+                          {/* Status Badge */}
                           <TableCell className="py-4 align-top">
                             <TaskStatusBadge status={task.status} />
                           </TableCell>
 
-                          {/* Priority badge */}
+                          {/* Priority Badge */}
                           <TableCell className="py-4 align-top">
                             <PriorityBadge priority={task.priority} />
                           </TableCell>
 
                           {/* Due Date */}
-                          <TableCell className="py-4 align-top">
+                          <TableCell className="py-4 align-top whitespace-nowrap">
                             {task.dueDate ? (
-                              <span
-                                className={`inline-flex items-center gap-1.5 font-mono text-xs ${
-                                  isOverdue ? "font-semibold text-red-500" : "text-muted-foreground"
-                                }`}
-                              >
-                                {isOverdue ? (
-                                  <AlertCircle className="h-3.5 w-3.5" />
-                                ) : (
-                                  <Calendar className="h-3.5 w-3.5" />
+                              <div className="flex items-center gap-1.5">
+                                <Calendar className={`h-3.5 w-3.5 ${isOverdue ? "text-destructive animate-pulse" : "text-muted-foreground"}`} />
+                                <span className={`font-sans text-xs ${isOverdue ? "text-destructive font-semibold" : "text-foreground"}`}>
+                                  {format(new Date(task.dueDate), "MMM d, yyyy")}
+                                </span>
+                                {isOverdue && (
+                                  <AlertCircle className="h-3 w-3 text-destructive" title="Overdue!" />
                                 )}
-                                {new Date(task.dueDate).toLocaleDateString()}
-                              </span>
+                              </div>
                             ) : (
-                              <span className="text-muted-foreground/60 font-mono text-xs">—</span>
+                              <span className="text-muted-foreground/60 italic text-xs">—</span>
                             )}
                           </TableCell>
 
                           {/* Actions */}
-                          <TableCell className="py-3 text-right align-top">
+                          <TableCell className="py-3 text-right align-top" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-1">
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={(e) => handleOpenEdit(task, e)}
                                 className="text-muted-foreground hover:text-foreground hover:bg-muted h-8 w-8"
-                                title="Edit task"
+                                title="Edit item"
                               >
                                 <Edit2 className="h-3.5 w-3.5" />
                               </Button>
@@ -690,7 +653,7 @@ export default function ProgressTab() {
                                 size="icon"
                                 onClick={(e) => handleOpenDelete(task._id, e)}
                                 className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8"
-                                title="Delete task"
+                                title="Delete item"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
@@ -698,22 +661,63 @@ export default function ProgressTab() {
                           </TableCell>
                         </TableRow>
 
-                        {/* Expandable description + comments */}
+                        {/* Expandable Details */}
                         {isExpanded && (
-                          <TableRow className="border-border/50 bg-muted/5 hover:bg-muted/5 border-b">
-                            <TableCell colSpan={6} className="px-6 py-4 whitespace-normal">
+                          <TableRow className="border-border/50 bg-muted/5 hover:bg-muted/5 border-b" onClick={(e) => e.stopPropagation()}>
+                            <TableCell colSpan={7} className="px-6 py-4 whitespace-normal">
                               <div className="space-y-4 w-full">
-                                <div className="bg-card border border-border/50 rounded-md p-4 space-y-1.5 w-full">
-                                  {task.description ? (
-                                    <p className="text-foreground/80 font-sans text-xs leading-relaxed break-words whitespace-pre-wrap">
-                                      {task.description}
-                                    </p>
-                                  ) : (
-                                    <p className="text-muted-foreground italic text-[11px]">
-                                      No description provided.
-                                    </p>
-                                  )}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="bg-card border border-border/50 rounded-md p-4 space-y-3 w-full text-xs">
+                                    {!task.area && (!task.screenshots || task.screenshots.length === 0) ? (
+                                      <div className="flex flex-col items-center justify-center py-6 text-center text-muted-foreground">
+                                        <span className="italic">No area module or screenshots provided.</span>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        {task.area && (
+                                          <div>
+                                            <span className="text-muted-foreground block font-mono text-[9px] uppercase tracking-wider">Area / Module</span>
+                                            <span className="font-medium text-foreground">{task.area}</span>
+                                          </div>
+                                        )}
+                                        {task.screenshots && task.screenshots.length > 0 && (
+                                          <div>
+                                            <span className="text-muted-foreground block font-mono text-[9px] uppercase tracking-wider mb-1.5">Screenshots</span>
+                                            <div className="grid grid-cols-4 gap-2">
+                                              {task.screenshots.map((url, sIdx) => (
+                                                <div
+                                                  key={sIdx}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setScreenshotPreviewSrc(url);
+                                                    setScreenshotPreviewOpen(true);
+                                                  }}
+                                                  className="border rounded overflow-hidden aspect-video hover:opacity-80 transition-opacity cursor-pointer"
+                                                >
+                                                  <img src={getDisplayUrl(url)} alt={`Screenshot ${sIdx + 1}`} className="w-full h-full object-cover" />
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+
+                                  <div className="bg-card border border-border/50 rounded-md p-4 space-y-1.5 w-full">
+                                    <span className="text-muted-foreground block font-mono text-[9px] uppercase tracking-wider">Description</span>
+                                    {task.description ? (
+                                      <p className="text-foreground/80 font-sans text-xs leading-relaxed break-words whitespace-pre-wrap">
+                                        {task.description}
+                                      </p>
+                                    ) : (
+                                      <p className="text-muted-foreground italic text-[11px]">
+                                        No description provided.
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
+
                                 <div className="bg-card border border-border/50 rounded-md p-4 space-y-3 w-full">
                                   <span className="font-mono text-[10px] uppercase text-muted-foreground font-semibold tracking-wider block">
                                     Comments ({task.comments.length})
@@ -723,12 +727,10 @@ export default function ProgressTab() {
                                       {task.comments.map((comment, idx) => (
                                         <div
                                           key={comment._id || idx}
-                                          className="bg-muted/40 border border-border/40 rounded p-2.5 text-xs space-y-1"
+                                          className="bg-muted/45 border border-border/45 rounded p-2.5 text-xs space-y-1"
                                         >
                                           <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
-                                            <span className="font-medium">
-                                              {comment.userName || "Team Member"}
-                                            </span>
+                                            <span className="font-medium">{comment.userName || "Team Member"}</span>
                                             <span>
                                               {format(new Date(comment.createdAt), "MMM d, yyyy h:mm a")}
                                             </span>
@@ -762,13 +764,14 @@ export default function ProgressTab() {
         onOpenChange={setDialogOpen}
         projectId={projectId}
         task={selectedTask}
+        defaultType={dialogDefaultType}
       />
 
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title="Delete Task"
-        description="Are you sure you want to delete this task? This action cannot be undone."
+        title="Delete Item"
+        description="Are you sure you want to delete this tracker item? This action will permanently remove it and all associated comment history. This cannot be undone."
         confirmLabel="Delete"
         onConfirm={handleConfirmDelete}
         loading={isDeletePending}
@@ -778,6 +781,13 @@ export default function ProgressTab() {
         open={previewOpen}
         onOpenChange={setPreviewOpen}
         tasks={exportTargets}
+      />
+
+      <ImagePreviewDialog
+        open={screenshotPreviewOpen}
+        onOpenChange={setScreenshotPreviewOpen}
+        src={getDisplayUrl(screenshotPreviewSrc || "")}
+        name="Screenshot Preview"
       />
     </div>
   );
@@ -803,15 +813,73 @@ function TaskInlineCommentForm({ projectId, taskId }: { projectId: string; taskI
         value={text}
         onChange={(e) => setText(e.target.value)}
         disabled={isPending}
-        className="flex-1 bg-background border border-border/50 rounded px-2.5 py-1 font-sans text-xs text-foreground focus:outline-none focus:border-primary"
+        className="flex-1 bg-background border border-border/50 rounded px-2.5 py-1.5 font-sans text-xs text-foreground focus:outline-none focus:border-primary"
       />
       <button
         type="submit"
         disabled={isPending || !text.trim()}
-        className="px-2.5 py-1 rounded bg-primary text-primary-foreground font-sans text-xs hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-1 shrink-0"
+        className="px-3 py-1.5 rounded bg-primary text-primary-foreground font-sans text-xs hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-1 shrink-0 h-9"
       >
-        {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <><Send className="w-3 h-3" /> Post</>}
+        {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Send className="w-3.5 h-3.5" /> Post</>}
       </button>
     </form>
+  );
+}
+
+// ── Export Preview Modal Component ────────────────────────────────────────────
+
+interface ExportPreviewModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  tasks: TaskData[];
+}
+
+function ExportPreviewModal({ open, onOpenChange, tasks }: ExportPreviewModalProps) {
+  const [copied, setCopied] = useState(false);
+
+  const markdownText = useMemo(() => buildPreviewText(tasks), [tasks]);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(markdownText);
+      setCopied(true);
+      toast.success("Copied to clipboard!");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Failed to copy text.");
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl p-0 overflow-hidden">
+        <div className="flex flex-col max-h-[85vh] p-6">
+          <DialogHeader className="shrink-0 mb-4">
+            <DialogTitle>Export Preview</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto border border-border bg-muted/20 p-4 font-mono text-xs whitespace-pre-wrap break-all rounded-lg min-h-[200px] max-h-[450px]">
+            {markdownText || "No items to display."}
+          </div>
+          <div className="flex justify-end gap-2 pt-3 border-t border-border mt-4 shrink-0">
+            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+            <Button size="sm" onClick={handleCopy} disabled={!markdownText} className="gap-1.5 bg-[#4F46C7] hover:bg-[#4F46C7]/90 text-white">
+              {copied ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="h-4 w-4" />
+                  Copy Text
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

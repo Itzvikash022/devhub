@@ -116,10 +116,12 @@ export function useDeleteProject(id: string) {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  return useMutation<void, ApiError, void>({
-    mutationFn: async () => {
+  return useMutation<void, ApiError, { password?: string }>({
+    mutationFn: async ({ password }) => {
       const res = await fetch(API_ROUTES.PROJECT(id), {
         method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
       });
       return handleResponse<void>(res);
     },

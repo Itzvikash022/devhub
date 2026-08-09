@@ -9,6 +9,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useState, useEffect } from "react";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -17,9 +19,10 @@ interface ConfirmDialogProps {
   description: string;
   confirmLabel?: string;
   cancelLabel?: string;
-  onConfirm: () => void;
+  onConfirm: (password?: string) => void;
   loading?: boolean;
   variant?: "destructive" | "default";
+  requirePassword?: boolean;
 }
 
 /**
@@ -38,7 +41,14 @@ export function ConfirmDialog({
   onConfirm,
   loading = false,
   variant = "destructive",
+  requirePassword = false,
 }: ConfirmDialogProps) {
+  const [password, setPassword] = useState("");
+
+  useEffect(() => {
+    if (!open) setPassword("");
+  }, [open]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false} className="sm:max-w-md">
@@ -46,11 +56,26 @@ export function ConfirmDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
+        {requirePassword && (
+          <div className="py-2">
+            <Input
+              type="password"
+              placeholder="Enter your password to confirm"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             {cancelLabel}
           </Button>
-          <Button variant={variant} onClick={onConfirm} disabled={loading}>
+          <Button 
+            variant={variant} 
+            onClick={() => onConfirm(requirePassword ? password : undefined)} 
+            disabled={loading || (requirePassword && !password)}
+          >
             {loading ? "Processing..." : confirmLabel}
           </Button>
         </DialogFooter>

@@ -217,6 +217,9 @@ When a task with a due date is created or updated, the service layer automatical
 
 ## Patch Notes
 
+### v2.5.2 — Project Deletion Security
+- Restricted project modification buttons to owners and required password confirmation to delete workspaces.
+
 ### v2.5.1 — Collaboration Bug Fixes
 - Fixed Mongoose schema registration crashes across all APIs.
 - Fixed pending invitations query returning empty lists.

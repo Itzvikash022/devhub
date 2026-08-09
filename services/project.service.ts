@@ -10,6 +10,8 @@ import { CreateProjectInput, UpdateProjectInput } from "@/schemas/project.schema
 import { IProjectDocument } from "@/models/Project";
 import { Task } from "@/models/Task";
 import { deleteObject } from "@/lib/r2";
+import bcrypt from "bcryptjs";
+import { UserRepository } from "@/repositories/user.repository";
 
 export class ProjectService {
   /**
@@ -74,14 +76,26 @@ export class ProjectService {
   }
 
   /**
-   * Deletes a project, verifying ownership.
+   * Deletes a project, verifying ownership and password.
    */
-  static async delete(userId: string, id: string): Promise<void> {
+  static async delete(userId: string, id: string, password?: string): Promise<void> {
+    if (!password) {
+      throw new Error("INVALID_PASSWORD");
+    }
+
     // Verify ownership first (must be owner to delete)
     const project = await this.getById(userId, id);
     const projectOwnerId = project.userId?._id?.toString() || project.userId?.toString();
     if (projectOwnerId !== userId) {
       throw new Error("FORBIDDEN_NOT_OWNER");
+    }
+
+    // Verify password
+    const user = await UserRepository.findById(userId);
+    if (!user) throw new Error("NOT_FOUND");
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
+    if (!isMatch) {
+      throw new Error("INVALID_PASSWORD");
     }
 
     const deleted = await ProjectRepository.delete(id);

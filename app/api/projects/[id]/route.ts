@@ -72,14 +72,20 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    await ProjectService.delete(session.userId, id);
+    const body = await request.json();
+    const { password } = body;
+
+    await ProjectService.delete(session.userId, id, password);
     return successResponse(null, "Project deleted successfully");
   } catch (error: any) {
     if (error.message === "NOT_FOUND") {
       return notFoundResponse("Project");
     }
-    if (error.message === "FORBIDDEN") {
+    if (error.message === "FORBIDDEN" || error.message === "FORBIDDEN_NOT_OWNER") {
       return forbiddenResponse();
+    }
+    if (error.message === "INVALID_PASSWORD") {
+      return validationErrorResponse("Invalid password provided.");
     }
     return internalErrorResponse();
   }

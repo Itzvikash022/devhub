@@ -13,6 +13,7 @@ import { usePageTitle } from "@/hooks/usePageTitle";
 import { ROUTES } from "@/constants/routes.constants";
 import { cn } from "@/lib/utils";
 import { useActiveProject } from "@/components/layout/ActiveProjectContext";
+import { useMe } from "@/hooks/useAuth";
 
 interface ProjectWorkspaceLayoutProps {
   children: React.ReactNode;
@@ -51,8 +52,12 @@ export default function ProjectWorkspaceLayout({ children }: ProjectWorkspaceLay
   usePageTitle(project?.name || "");
   const { mutate: updateProject, isPending: isArchivePending } = useUpdateProject(id);
   const { mutate: deleteProject, isPending: isDeletePending } = useDeleteProject(id);
+  const { data: user } = useMe();
 
   const isPending = isArchivePending || isDeletePending;
+
+  const projectOwnerId = project?.userId?._id || project?.userId;
+  const isOwner = user && projectOwnerId === user.userId;
 
   const tabs = [
     { label: "Notes", href: ROUTES.PROJECT_NOTES(id) },
@@ -97,8 +102,8 @@ export default function ProjectWorkspaceLayout({ children }: ProjectWorkspaceLay
     updateProject({ status: nextStatus });
   };
 
-  const handleDelete = () => {
-    deleteProject(undefined, {
+  const handleDelete = (password?: string) => {
+    deleteProject({ password }, {
       onSuccess: () => {
         setDeleteOpen(false);
       },
@@ -106,7 +111,7 @@ export default function ProjectWorkspaceLayout({ children }: ProjectWorkspaceLay
   };
 
   // Action buttons for the topbar
-  const headerActions = (
+  const headerActions = isOwner ? (
     <div className="flex items-center gap-2">
       <button
         onClick={() => setEditOpen(true)}
@@ -127,7 +132,7 @@ export default function ProjectWorkspaceLayout({ children }: ProjectWorkspaceLay
         onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text)"; }}
         onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-dim)"; }}
       >
-        {project.status === "archived" ? (
+        {project?.status === "archived" ? (
           <><ArchiveRestore className="h-3.5 w-3.5" />Restore</>
         ) : (
           <><Archive className="h-3.5 w-3.5" />Archive</>
@@ -145,7 +150,7 @@ export default function ProjectWorkspaceLayout({ children }: ProjectWorkspaceLay
         Delete
       </button>
     </div>
-  );
+  ) : null;
 
   return (
     <div className="flex h-full flex-col">
@@ -226,6 +231,7 @@ export default function ProjectWorkspaceLayout({ children }: ProjectWorkspaceLay
         confirmLabel="Delete permanently"
         onConfirm={handleDelete}
         loading={isPending}
+        requirePassword={true}
       />
     </div>
   );

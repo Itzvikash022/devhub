@@ -260,7 +260,12 @@ export function ImageUploadDialog({ open, onOpenChange, projectId }: ImageUpload
   };
 
   const uploadSingleItem = async (item: QueueItem): Promise<void> => {
-    updateItem(item.id, { status: "uploading", progress: 0 });
+    updateItem(item.id, {
+      status: "uploading",
+      progress: 0,
+      r2Key: item.r2Key,
+      uploadUrl: item.uploadUrl,
+    });
 
     try {
       // Generate Client-Side Thumbnail & Dimensions
@@ -276,7 +281,11 @@ export function ImageUploadDialog({ open, onOpenChange, projectId }: ImageUpload
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) {
             const percent = Math.round((e.loaded / e.total) * 100);
-            updateItem(item.id, { progress: percent });
+            updateItem(item.id, {
+              progress: percent,
+              r2Key: item.r2Key,
+              uploadUrl: item.uploadUrl,
+            });
           }
         };
 
@@ -289,24 +298,41 @@ export function ImageUploadDialog({ open, onOpenChange, projectId }: ImageUpload
               thumbnail,
               width,
               height,
+              r2Key: item.r2Key,
+              uploadUrl: item.uploadUrl,
             });
             resolve();
           } else {
-            updateItem(item.id, { status: "failed", errorMsg: "Upload failed" });
+            updateItem(item.id, {
+              status: "failed",
+              errorMsg: "Upload failed",
+              r2Key: item.r2Key,
+              uploadUrl: item.uploadUrl,
+            });
             reject(new Error("R2 upload status error"));
           }
         };
 
         xhr.onerror = () => {
           delete activeXhrs.current[item.id];
-          updateItem(item.id, { status: "failed", errorMsg: "Network error" });
+          updateItem(item.id, {
+            status: "failed",
+            errorMsg: "Network error",
+            r2Key: item.r2Key,
+            uploadUrl: item.uploadUrl,
+          });
           reject(new Error("XHR network error"));
         };
 
         xhr.send(item.file);
       });
     } catch (err) {
-      updateItem(item.id, { status: "failed", errorMsg: "Thumbnail gen failed" });
+      updateItem(item.id, {
+        status: "failed",
+        errorMsg: "Thumbnail gen failed",
+        r2Key: item.r2Key,
+        uploadUrl: item.uploadUrl,
+      });
     }
   };
 

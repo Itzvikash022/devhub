@@ -217,6 +217,16 @@ When a task with a due date is created or updated, the service layer automatical
 
 ## Patch Notes
 
+### v2.6.0 — Popping Sidebar Details, Clickable Sorting & UI/UX Enhancements
+- Replaced inline expandable row details with a popping right sidebar Sheet.
+- Added instant inline editing for Description and Area / Module with Save/Cancel buttons inside the sidebar.
+- Added column header clicking to sort table tasks, with interactive sort direction indicators.
+- Added a toggle button for "Assigned to me" in place of the sorting dropdown.
+- Enabled double-click selection of images inside the Vault Selector modal.
+- Restructured TaskDialog: removed comments feed and laid out other fields into left/right columns.
+- Auto-select today's date as the default due date when creating new tracker items.
+- Restructured Settings: converted invitations to Settings, relocated Settings to the bottom of the sidebar, and added project settings with owner-only project deletion.
+
 ### v2.5.2 — Project Deletion Security
 - Restricted project modification buttons to owners and required password confirmation to delete workspaces.
 

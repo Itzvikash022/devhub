@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
-import { ChevronLeft, Edit2, Archive, Trash2, Loader2, ArchiveRestore } from "lucide-react";
-import { useProjectDetails, useUpdateProject, useDeleteProject } from "@/hooks/useProjects";
+import { ChevronLeft, Edit2, Archive, Loader2, ArchiveRestore } from "lucide-react";
+import { useProjectDetails, useUpdateProject } from "@/hooks/useProjects";
 import { StatusChip } from "@/components/shared/StatusChip";
 import { ProjectDialog } from "@/components/dialogs/ProjectDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -25,7 +25,6 @@ export default function ProjectWorkspaceLayout({ children }: ProjectWorkspaceLay
   const { activeProjectId } = useActiveProject();
 
   const [editOpen, setEditOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
 
   // Persist the last accessed tab to localStorage
   useEffect(() => {
@@ -51,10 +50,9 @@ export default function ProjectWorkspaceLayout({ children }: ProjectWorkspaceLay
   const { data: project, isLoading, error } = useProjectDetails(id);
   usePageTitle(project?.name || "");
   const { mutate: updateProject, isPending: isArchivePending } = useUpdateProject(id);
-  const { mutate: deleteProject, isPending: isDeletePending } = useDeleteProject(id);
   const { data: user } = useMe();
 
-  const isPending = isArchivePending || isDeletePending;
+  const isPending = isArchivePending;
 
   const projectOwnerId = project?.userId?._id || project?.userId;
   const isOwner = user && projectOwnerId === user.userId;
@@ -102,13 +100,7 @@ export default function ProjectWorkspaceLayout({ children }: ProjectWorkspaceLay
     updateProject({ status: nextStatus });
   };
 
-  const handleDelete = (password?: string) => {
-    deleteProject({ password }, {
-      onSuccess: () => {
-        setDeleteOpen(false);
-      },
-    });
-  };
+// handleDelete removed, moved to settings page
 
   // Action buttons for the topbar
   const headerActions = isOwner ? (
@@ -137,17 +129,6 @@ export default function ProjectWorkspaceLayout({ children }: ProjectWorkspaceLay
         ) : (
           <><Archive className="h-3.5 w-3.5" />Archive</>
         )}
-      </button>
-      <button
-        onClick={() => { setEditOpen(false); setDeleteOpen(true); }}
-        disabled={isPending}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-inter text-[12px] transition-colors disabled:opacity-50"
-        style={{ backgroundColor: "var(--red)", color: "#fff" }}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = "0.85"; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-        Delete
       </button>
     </div>
   ) : null;
@@ -221,17 +202,6 @@ export default function ProjectWorkspaceLayout({ children }: ProjectWorkspaceLay
           description: project.description,
           status: project.status,
         }}
-      />
-
-      <ConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title={`Delete "${project.name}"?`}
-        description="Are you sure you want to permanently delete this project? All associated global vault assets will remain intact but will be unlinked from this workspace."
-        confirmLabel="Delete permanently"
-        onConfirm={handleDelete}
-        loading={isPending}
-        requirePassword={true}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, Fragment } from "react";
+import { useState, useMemo, Fragment, useEffect } from "react";
 import { useParams } from "next/navigation";
 import {
   useTasksList,
@@ -49,6 +49,9 @@ import {
   Copy,
   Check,
   X,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -60,6 +63,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getDisplayUrl } from "@/lib/utils";
 import { ImagePreviewDialog } from "@/components/dialogs/ImagePreviewDialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -165,15 +175,15 @@ export default function ProgressTab() {
   const [statusFilter, setStatusFilter] = useState<string>("todo");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("dueDate-asc");
+  const [sortBy, setSortBy] = useState<string>("createdAt-desc");
   const [assignedToMeOnly, setAssignedToMeOnly] = useState(false);
 
   // Screenshot preview dialog states
   const [screenshotPreviewSrc, setScreenshotPreviewSrc] = useState<string | null>(null);
   const [screenshotPreviewOpen, setScreenshotPreviewOpen] = useState(false);
 
-  // Expand state
-  const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
+  // Right sidebar active task state
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
 
   // ── Export Selection state ────────────────────────────────────────
   const [selectedForExport, setSelectedForExport] = useState<Set<string>>(new Set());
@@ -198,6 +208,11 @@ export default function ProgressTab() {
   const selectedTask = useMemo(
     () => tasks.find((t) => t._id === selectedTaskId),
     [tasks, selectedTaskId]
+  );
+
+  const activeTask = useMemo(
+    () => tasks.find((t) => t._id === activeTaskId),
+    [tasks, activeTaskId]
   );
 
   // ── Filtering & Sorting ───────────────────────────────────────────
@@ -229,23 +244,38 @@ export default function ProgressTab() {
         return matchesSearch && matchesStatus && matchesPriority && matchesType && matchesAssignee;
       })
       .sort((a, b) => {
-        switch (sortBy) {
-          case "createdAt-desc":
-            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-          case "dueDate-asc":
+        const [field, direction] = sortBy.split("-");
+        const isAsc = direction === "asc";
+
+        switch (field) {
+          case "createdAt":
+            return isAsc
+              ? new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+              : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          case "dueDate": {
             if (!a.dueDate && !b.dueDate) return 0;
             if (!a.dueDate) return 1;
             if (!b.dueDate) return -1;
-            return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-          case "dueDate-desc":
-            if (!a.dueDate && !b.dueDate) return 0;
-            if (!a.dueDate) return 1;
-            if (!b.dueDate) return -1;
-            return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
-          case "priority-desc":
-            return getPriorityWeight(b.priority) - getPriorityWeight(a.priority);
-          case "priority-asc":
-            return getPriorityWeight(a.priority) - getPriorityWeight(b.priority);
+            return isAsc
+              ? new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+              : new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
+          }
+          case "priority":
+            return isAsc
+              ? getPriorityWeight(a.priority) - getPriorityWeight(b.priority)
+              : getPriorityWeight(b.priority) - getPriorityWeight(a.priority);
+          case "status":
+            return isAsc
+              ? a.status.localeCompare(b.status)
+              : b.status.localeCompare(a.status);
+          case "id":
+            return isAsc
+              ? (a.bugNumber || 0) - (b.bugNumber || 0)
+              : (b.bugNumber || 0) - (a.bugNumber || 0);
+          case "title":
+            return isAsc
+              ? a.title.localeCompare(b.title)
+              : b.title.localeCompare(a.title);
           default:
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         }
@@ -321,15 +351,10 @@ export default function ProgressTab() {
   const handleContextCopyTask = () => {
     if (!contextMenu) return;
     const task = contextMenu.task;
-    const itemId = task.type === "bug"
-      ? `B-${String(task.bugNumber || 0).padStart(4, "0")}`
-      : `T-${String(task.bugNumber || 0).padStart(4, "0")}`;
     const text = [
-      `${itemId}: ${task.title}`,
-      `Type: ${(task.type || "task").toUpperCase()} | Status: ${task.status.toUpperCase()} | Priority: ${task.priority.toUpperCase()}`,
-      task.dueDate ? `Due: ${format(new Date(task.dueDate), "MMM d, yyyy")}` : "Due: N/A",
-      task.description ? `\n${task.description}` : "",
-    ].filter(Boolean).join("\n");
+      task.title,
+      task.description || "",
+    ].filter(Boolean).join("\n\n");
     navigator.clipboard.writeText(text).then(() => toast.success("Task copied to clipboard!"));
     setContextMenu(null);
   };
@@ -365,8 +390,28 @@ export default function ProgressTab() {
     });
   };
 
-  const toggleExpand = (taskId: string) =>
-    setExpandedTasks((prev) => ({ ...prev, [taskId]: !prev[taskId] }));
+  // toggleExpand removed (replaced by right sidebar setActiveTaskId)
+
+  const toggleSort = (field: string) => {
+    const [activeField, direction] = sortBy.split("-");
+    if (activeField === field) {
+      setSortBy(`${field}-${direction === "asc" ? "desc" : "asc"}`);
+    } else {
+      setSortBy(`${field}-asc`);
+    }
+  };
+
+  const getSortIcon = (field: string) => {
+    const [activeField, direction] = sortBy.split("-");
+    if (activeField !== field) {
+      return <ArrowUpDown className="w-3 h-3 text-muted-foreground/35" />;
+    }
+    return direction === "asc" ? (
+      <ArrowUp className="w-3 h-3 text-primary" />
+    ) : (
+      <ArrowDown className="w-3 h-3 text-primary" />
+    );
+  };
 
   // ── Loading / Error ───────────────────────────────────────────────
   if (isLoading) {
@@ -439,23 +484,29 @@ export default function ProgressTab() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button
-            size="sm"
-            onClick={handleOpenCreateTask}
-            className="shrink-0 gap-1.5 h-9 bg-[#4F46C7] hover:bg-[#4F46C7]/90 text-white font-sans text-xs"
-          >
-            <Plus className="h-4 w-4" />
-            New Task
-          </Button>
-
-          <Button
-            size="sm"
-            onClick={handleOpenCreateBug}
-            className="shrink-0 gap-1.5 h-9 bg-red-600 hover:bg-red-700 text-white font-sans text-xs"
-          >
-            <Plus className="h-4 w-4" />
-            New Bug
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  size="sm"
+                  className="shrink-0 gap-1.5 h-9 bg-[#4F46C7] hover:bg-[#4F46C7]/90 text-white font-sans text-xs cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add New
+                </Button>
+              }
+            />
+            <DropdownMenuContent className="min-w-[120px] z-50" align="end">
+              <DropdownMenuItem onClick={handleOpenCreateTask} className="cursor-pointer gap-2 text-xs">
+                <CheckSquare className="w-3.5 h-3.5" />
+                New Task
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleOpenCreateBug} className="cursor-pointer gap-2 text-xs text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/20">
+                <AlertCircle className="w-3.5 h-3.5" />
+                New Bug
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -514,28 +565,15 @@ export default function ProgressTab() {
               <option value="tasks">Tasks Only</option>
               <option value="bugs">Bugs Only</option>
             </select>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="border-input bg-background text-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-xs shadow-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
-            >
-              <option value="createdAt-desc">Newest Created</option>
-              <option value="dueDate-asc">Due Date (Asc)</option>
-              <option value="dueDate-desc">Due Date (Desc)</option>
-              <option value="priority-desc">Priority (High → Low)</option>
-              <option value="priority-asc">Priority (Low → High)</option>
-            </select>
-            <div className="flex items-center gap-2 md:col-span-1 pl-2">
-              <input
-                type="checkbox"
-                id="assignedToMe"
-                checked={assignedToMeOnly}
-                onChange={(e) => setAssignedToMeOnly(e.target.checked)}
-                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-              />
-              <label htmlFor="assignedToMe" className="text-xs text-foreground cursor-pointer select-none">
-                Assigned to me
-              </label>
+            <div className="flex items-center justify-end md:col-span-1">
+              <Button
+                variant={assignedToMeOnly ? "default" : "outline"}
+                size="sm"
+                onClick={() => setAssignedToMeOnly(!assignedToMeOnly)}
+                className="h-9 w-full text-xs font-sans gap-1.5 cursor-pointer"
+              >
+                {assignedToMeOnly ? "Assigned to me" : "All Assignees"}
+              </Button>
             </div>
           </div>
 
@@ -579,21 +617,51 @@ export default function ProgressTab() {
                     </button>
                   </TableHead>
                   {/* ID Column */}
-                  <TableHead className="w-24 font-mono text-[10px] font-semibold tracking-wider">
-                    ID
+                  <TableHead
+                    onClick={() => toggleSort("id")}
+                    className="w-24 font-mono text-[10px] font-semibold tracking-wider cursor-pointer hover:bg-muted/30 select-none transition-colors"
+                  >
+                    <div className="flex items-center gap-1">
+                      ID
+                      {getSortIcon("id")}
+                    </div>
                   </TableHead>
                   {/* Title / Summary */}
-                  <TableHead className="w-[38%] font-mono text-[10px] font-semibold tracking-wider">
-                    Title / Summary
+                  <TableHead
+                    onClick={() => toggleSort("title")}
+                    className="w-[38%] font-mono text-[10px] font-semibold tracking-wider cursor-pointer hover:bg-muted/30 select-none transition-colors"
+                  >
+                    <div className="flex items-center gap-1">
+                      Title / Summary
+                      {getSortIcon("title")}
+                    </div>
                   </TableHead>
-                  <TableHead className="w-28 font-mono text-[10px] font-semibold tracking-wider">
-                    Status
+                  <TableHead
+                    onClick={() => toggleSort("status")}
+                    className="w-28 font-mono text-[10px] font-semibold tracking-wider cursor-pointer hover:bg-muted/30 select-none transition-colors"
+                  >
+                    <div className="flex items-center gap-1">
+                      Status
+                      {getSortIcon("status")}
+                    </div>
                   </TableHead>
-                  <TableHead className="w-28 font-mono text-[10px] font-semibold tracking-wider">
-                    Priority
+                  <TableHead
+                    onClick={() => toggleSort("priority")}
+                    className="w-28 font-mono text-[10px] font-semibold tracking-wider cursor-pointer hover:bg-muted/30 select-none transition-colors"
+                  >
+                    <div className="flex items-center gap-1">
+                      Priority
+                      {getSortIcon("priority")}
+                    </div>
                   </TableHead>
-                  <TableHead className="w-32 font-mono text-[10px] font-semibold tracking-wider">
-                    Due Date
+                  <TableHead
+                    onClick={() => toggleSort("dueDate")}
+                    className="w-32 font-mono text-[10px] font-semibold tracking-wider cursor-pointer hover:bg-muted/30 select-none transition-colors"
+                  >
+                    <div className="flex items-center gap-1">
+                      Due Date
+                      {getSortIcon("dueDate")}
+                    </div>
                   </TableHead>
                   <TableHead className="w-20 text-right font-mono text-[10px] font-semibold tracking-wider">
                     Actions
@@ -609,7 +677,6 @@ export default function ProgressTab() {
                   </TableRow>
                 ) : (
                   filteredAndSortedTasks.map((task) => {
-                    const isExpanded = !!expandedTasks[task._id];
                     const isChecked = selectedForExport.has(task._id);
 
                     const isOverdue =
@@ -621,7 +688,7 @@ export default function ProgressTab() {
                       <Fragment key={task._id}>
                         <TableRow
                           className={`border-border/50 group border-b transition-colors cursor-pointer ${isChecked ? "bg-primary/5" : ""}`}
-                          onClick={() => toggleExpand(task._id)}
+                          onClick={() => setActiveTaskId(task._id)}
                           onContextMenu={(e) => handleContextMenu(e, task)}
                         >
                           {/* Export selection checkbox */}
@@ -732,94 +799,6 @@ export default function ProgressTab() {
                             </div>
                           </TableCell>
                         </TableRow>
-
-                        {/* Expandable Details */}
-                        {isExpanded && (
-                          <TableRow className="border-border/50 bg-muted/5 hover:bg-muted/5 border-b" onClick={(e) => e.stopPropagation()}>
-                            <TableCell colSpan={7} className="px-6 py-4 whitespace-normal">
-                              <div className="space-y-4 w-full">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div className="bg-card border border-border/50 rounded-md p-4 space-y-3 w-full text-xs">
-                                    {!task.area && (!task.screenshots || task.screenshots.length === 0) ? (
-                                      <div className="flex flex-col items-center justify-center py-6 text-center text-muted-foreground">
-                                        <span className="italic">No area module or screenshots provided.</span>
-                                      </div>
-                                    ) : (
-                                      <>
-                                        {task.area && (
-                                          <div>
-                                            <span className="text-muted-foreground block font-mono text-[9px] uppercase tracking-wider">Area / Module</span>
-                                            <span className="font-medium text-foreground">{task.area}</span>
-                                          </div>
-                                        )}
-                                        {task.screenshots && task.screenshots.length > 0 && (
-                                          <div>
-                                            <span className="text-muted-foreground block font-mono text-[9px] uppercase tracking-wider mb-1.5">Screenshots</span>
-                                            <div className="grid grid-cols-4 gap-2">
-                                              {task.screenshots.map((url, sIdx) => (
-                                                <div
-                                                  key={sIdx}
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setScreenshotPreviewSrc(url);
-                                                    setScreenshotPreviewOpen(true);
-                                                  }}
-                                                  className="border rounded overflow-hidden aspect-video hover:opacity-80 transition-opacity cursor-pointer"
-                                                >
-                                                  <img src={getDisplayUrl(url)} alt={`Screenshot ${sIdx + 1}`} className="w-full h-full object-cover" />
-                                                </div>
-                                              ))}
-                                            </div>
-                                          </div>
-                                        )}
-                                      </>
-                                    )}
-                                  </div>
-
-                                  <div className="bg-card border border-border/50 rounded-md p-4 space-y-1.5 w-full">
-                                    <span className="text-muted-foreground block font-mono text-[9px] uppercase tracking-wider">Description</span>
-                                    {task.description ? (
-                                      <p className="text-foreground/80 font-sans text-xs leading-relaxed break-words whitespace-pre-wrap">
-                                        {task.description}
-                                      </p>
-                                    ) : (
-                                      <p className="text-muted-foreground italic text-[11px]">
-                                        No description provided.
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-
-                                <div className="bg-card border border-border/50 rounded-md p-4 space-y-3 w-full">
-                                  <span className="font-mono text-[10px] uppercase text-muted-foreground font-semibold tracking-wider block">
-                                    Comments ({task.comments.length})
-                                  </span>
-                                  {task.comments.length > 0 && (
-                                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                                      {task.comments.map((comment, idx) => (
-                                        <div
-                                          key={comment._id || idx}
-                                          className="bg-muted/45 border border-border/45 rounded p-2.5 text-xs space-y-1"
-                                        >
-                                          <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
-                                            <span className="font-medium">{comment.createdBy?.name || comment.userName || "Team Member"}</span>
-                                            <span>
-                                              {format(new Date(comment.createdAt), "MMM d, yyyy h:mm a")}
-                                            </span>
-                                          </div>
-                                          <p className="font-sans text-xs text-foreground/80 break-words whitespace-pre-wrap">
-                                            {comment.text}
-                                          </p>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                  <TaskInlineCommentForm projectId={projectId} taskId={task._id} />
-                                </div>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )}
                       </Fragment>
                     );
                   })
@@ -862,6 +841,19 @@ export default function ProgressTab() {
         name="Screenshot Preview"
       />
 
+      <TaskDetailsSidebar
+        task={activeTask}
+        open={!!activeTaskId}
+        onOpenChange={(open) => {
+          if (!open) setActiveTaskId(null);
+        }}
+        projectId={projectId}
+        onScreenshotClick={(url) => {
+          setScreenshotPreviewSrc(url);
+          setScreenshotPreviewOpen(true);
+        }}
+      />
+
       {/* ── Right-click Context Menu ────────────────────────────────── */}
       {contextMenu && (
         <>
@@ -898,6 +890,262 @@ export default function ProgressTab() {
         </>
       )}
     </div>
+  );
+}
+
+// ── Task Details Sidebar ───────────────────────────────────────────────────────
+
+interface TaskDetailsSidebarProps {
+  task: TaskData | undefined;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  projectId: string;
+  onScreenshotClick: (url: string) => void;
+}
+
+function TaskDetailsSidebar({
+  task,
+  open,
+  onOpenChange,
+  projectId,
+  onScreenshotClick,
+}: TaskDetailsSidebarProps) {
+  const { mutate: updateTask, isPending: isUpdating } = useUpdateTask(projectId);
+  const [isEditingArea, setIsEditingArea] = useState(false);
+  const [areaVal, setAreaVal] = useState("");
+  const [isEditingDesc, setIsEditingDesc] = useState(false);
+  const [descVal, setDescVal] = useState("");
+
+  // Sync state values when task changes or sidebar opens
+  useEffect(() => {
+    if (task) {
+      setAreaVal(task.area || "");
+      setDescVal(task.description || "");
+    }
+    setIsEditingArea(false);
+    setIsEditingDesc(false);
+  }, [task]);
+
+  if (!task) return null;
+
+  const handleSaveArea = () => {
+    updateTask(
+      { id: task._id, data: { area: areaVal } },
+      {
+        onSuccess: () => {
+          setIsEditingArea(false);
+          toast.success("Area / Module updated successfully.");
+        },
+      }
+    );
+  };
+
+  const handleSaveDesc = () => {
+    updateTask(
+      { id: task._id, data: { description: descVal } },
+      {
+        onSuccess: () => {
+          setIsEditingDesc(false);
+          toast.success("Description updated successfully.");
+        },
+      }
+    );
+  };
+
+  const isBug = task.type === "bug";
+  const itemId = isBug
+    ? `B-${String(task.bugNumber || 0).padStart(4, "0")}`
+    : `T-${String(task.bugNumber || 0).padStart(4, "0")}`;
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="sm:max-w-md w-full h-full flex flex-col p-0 overflow-hidden bg-background border-l border-border shadow-2xl">
+        <SheetHeader className="p-6 border-b border-border/60 shrink-0">
+          <div className="flex items-center gap-2 mb-2">
+            {isBug ? (
+              <span className="font-mono text-[11px] font-semibold text-red-600 bg-red-50 dark:bg-red-950/30 dark:text-red-400 px-2 py-0.5 rounded border border-red-100 dark:border-red-900">
+                {itemId}
+              </span>
+            ) : (
+              <span className="font-mono text-[11px] font-semibold text-[#4F46C7] bg-[#4F46C7]/5 px-2 py-0.5 rounded border border-[#4F46C7]/15">
+                {itemId}
+              </span>
+            )}
+            <TaskStatusBadge status={task.status} />
+            <PriorityBadge priority={task.priority} />
+          </div>
+          <SheetTitle className="text-lg font-semibold text-foreground leading-tight tracking-tight">
+            {task.title}
+          </SheetTitle>
+          {task.dueDate && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Due: {format(new Date(task.dueDate), "MMM d, yyyy")}</span>
+            </div>
+          )}
+        </SheetHeader>
+
+        <ScrollArea className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Area / Module Section */}
+          <div className="space-y-2">
+            <label className="text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground block">
+              Area / Module
+            </label>
+            {isEditingArea ? (
+              <div className="space-y-2">
+                <Input
+                  value={areaVal}
+                  onChange={(e) => setAreaVal(e.target.value)}
+                  placeholder="e.g. Authentication, Billing, Header..."
+                  className="h-9 text-xs font-sans text-foreground"
+                  disabled={isUpdating}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={handleSaveArea}
+                    disabled={isUpdating}
+                    className="h-8 text-xs bg-primary text-primary-foreground hover:bg-primary/90 font-sans"
+                  >
+                    {isUpdating ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Check className="w-3 h-3 mr-1" />}
+                    Save
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setAreaVal(task.area || "");
+                      setIsEditingArea(false);
+                    }}
+                    disabled={isUpdating}
+                    className="h-8 text-xs font-sans"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => setIsEditingArea(true)}
+                className="p-3 bg-muted/30 border border-border/55 rounded-md hover:bg-muted/50 transition-colors cursor-pointer text-xs min-h-[38px] flex items-center font-sans"
+              >
+                {task.area ? (
+                  <span className="text-foreground font-medium">{task.area}</span>
+                ) : (
+                  <span className="text-muted-foreground/60 italic">Click to specify Area / Module</span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Description Section */}
+          <div className="space-y-2 mt-4">
+            <label className="text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground block">
+              Description
+            </label>
+            {isEditingDesc ? (
+              <div className="space-y-2">
+                <Textarea
+                  value={descVal}
+                  onChange={(e) => setDescVal(e.target.value)}
+                  placeholder="Describe details, goals, or specifications..."
+                  className="min-h-[120px] text-xs resize-none font-sans text-foreground"
+                  disabled={isUpdating}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={handleSaveDesc}
+                    disabled={isUpdating}
+                    className="h-8 text-xs bg-primary text-primary-foreground hover:bg-primary/90 font-sans"
+                  >
+                    {isUpdating ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Check className="w-3 h-3 mr-1" />}
+                    Save
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setDescVal(task.description || "");
+                      setIsEditingDesc(false);
+                    }}
+                    disabled={isUpdating}
+                    className="h-8 text-xs font-sans"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => setIsEditingDesc(true)}
+                className="p-3 bg-muted/30 border border-border/55 rounded-md hover:bg-muted/50 transition-colors cursor-pointer text-xs min-h-[80px] break-words whitespace-pre-wrap text-foreground/90 leading-relaxed font-sans"
+              >
+                {task.description ? (
+                  <span>{task.description}</span>
+                ) : (
+                  <span className="text-muted-foreground/60 italic">Click to add description...</span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Screenshots Section */}
+          {task.screenshots && task.screenshots.length > 0 && (
+            <div className="space-y-2 mt-4">
+              <label className="text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground block">
+                Screenshots
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {task.screenshots.map((url, sIdx) => (
+                  <div
+                    key={sIdx}
+                    onClick={() => onScreenshotClick(url)}
+                    className="border border-border rounded overflow-hidden aspect-video hover:opacity-80 transition-opacity cursor-pointer bg-muted/40"
+                  >
+                    <img
+                      src={getDisplayUrl(url)}
+                      alt={`Screenshot ${sIdx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Comments Section */}
+          <div className="border-t border-border/60 pt-4 mt-6 space-y-4">
+            {task.comments.length > 0 && (
+              <>
+                <span className="font-mono text-xs uppercase text-muted-foreground font-semibold tracking-wider block">
+                  Comments ({task.comments.length})
+                </span>
+                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                  {task.comments.map((comment, idx) => (
+                    <div
+                      key={comment._id || idx}
+                      className="bg-muted/35 border border-border/45 rounded p-3 text-xs space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
+                        <span className="font-semibold">{comment.createdBy?.name || comment.userName || "Team Member"}</span>
+                        <span>
+                          {format(new Date(comment.createdAt), "MMM d, yyyy h:mm a")}
+                        </span>
+                      </div>
+                      <p className="font-sans text-xs text-foreground/80 break-words whitespace-pre-wrap leading-relaxed">
+                        {comment.text}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            <TaskInlineCommentForm projectId={projectId} taskId={task._id} />
+          </div>
+        </ScrollArea>
+      </SheetContent>
+    </Sheet>
   );
 }
 

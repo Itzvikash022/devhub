@@ -134,4 +134,19 @@ export class TaskRepository {
       { new: true }
     ).exec();
   }
+
+  /**
+   * Directly updates bugNumber and/or createdBy for backfilling, bypassing validation if needed.
+   */
+  static async backfill(id: string, updateData: { bugNumber?: number; createdBy?: string }): Promise<void> {
+    await connectToDatabase();
+    const update: any = {};
+    if (updateData.bugNumber !== undefined) {
+      update.bugNumber = updateData.bugNumber;
+    }
+    if (updateData.createdBy !== undefined) {
+      update.createdBy = new mongoose.Types.ObjectId(updateData.createdBy);
+    }
+    await Task.updateOne({ _id: new mongoose.Types.ObjectId(id) }, { $set: update }).exec();
+  }
 }

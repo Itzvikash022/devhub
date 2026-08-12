@@ -217,15 +217,20 @@ When a task with a due date is created or updated, the service layer automatical
 
 ## Patch Notes
 
-### v2.6.0 — Popping Sidebar Details, Clickable Sorting & UI/UX Enhancements
-- Replaced inline expandable row details with a popping right sidebar Sheet.
+### v2.5.4 — Sidebar Sheet Details & Interactive Sorting
+- Replaced inline expandable table rows with a popping right sidebar Sheet.
 - Added instant inline editing for Description and Area / Module with Save/Cancel buttons inside the sidebar.
-- Added column header clicking to sort table tasks, with interactive sort direction indicators.
-- Added a toggle button for "Assigned to me" in place of the sorting dropdown.
-- Enabled double-click selection of images inside the Vault Selector modal.
-- Restructured TaskDialog: removed comments feed and laid out other fields into left/right columns.
-- Auto-select today's date as the default due date when creating new tracker items.
-- Restructured Settings: converted invitations to Settings, relocated Settings to the bottom of the sidebar, and added project settings with owner-only project deletion.
+- Hidden comments container in sidebar if no comments exist.
+- Added clickable table headers for sorting, with dynamic sort direction indicators.
+- Added a dedicated "Assigned to me" filter toggle button in place of the sorting dropdown.
+- Enabled double-click image selection in the vault picker modal.
+- Preselected today's date as the default due date on item creation.
+
+### v2.5.3 — Task Dialog & Project Settings Restructuring
+- Relocated project deletion "Danger Zone" to a dedicated Project Settings page with owner restriction.
+- Moved invitations/settings navigation tab to the bottom of the sidebar layout.
+- Restructured TaskDialog layout into two columns and cleaned up comment feeds.
+- Fixed screenshot uploads in tasks not persisting to the database.
 
 ### v2.5.2 — Project Deletion Security
 - Restricted project modification buttons to owners and required password confirmation to delete workspaces.

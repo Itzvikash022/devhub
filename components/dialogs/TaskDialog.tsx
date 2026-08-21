@@ -35,7 +35,7 @@ interface TaskDialogProps {
 
 export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }: TaskDialogProps) {
   const isEdit = !!task;
-  const [commentText, setCommentText] = useState("");
+
   const [isUploadingScreenshots, setIsUploadingScreenshots] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -58,10 +58,6 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
   // Mutations
   const { mutate: createTask, isPending: isCreatePending } = useCreateTask(projectId);
   const { mutate: updateTask, isPending: isUpdatePending } = useUpdateTask(projectId);
-  const { mutate: addComment, isPending: isCommentPending } = useAddComment(
-    projectId,
-    task?._id || ""
-  );
 
   const isPending = isCreatePending || isUpdatePending;
 
@@ -77,9 +73,8 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
     defaultValues: {
       title: "",
       description: "",
-      status: "todo",
       priority: "medium",
-      dueDate: null,
+      dueDate: new Date(),
       type: defaultType || "task",
       area: "",
       assignedTo: "",
@@ -113,7 +108,7 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
           description: "",
           status: "todo",
           priority: "medium",
-          dueDate: null,
+          dueDate: new Date(),
           type: defaultType || "task",
           area: "",
           assignedTo: "",
@@ -221,6 +216,11 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
 
     setValue("screenshots", uploadedUrls, { shouldDirty: true });
     setIsUploadingScreenshots(false);
+
+    // Auto-save screenshots in DB if we are editing an existing task
+    if (isEdit && task) {
+      updateTask({ id: task._id, data: { screenshots: uploadedUrls } });
+    }
   };
 
   const handleUploadScreenshots = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -232,6 +232,10 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
   const handleRemoveScreenshot = (indexToRemove: number) => {
     const next = screenshotsList.filter((_, idx) => idx !== indexToRemove);
     setValue("screenshots", next, { shouldDirty: true });
+
+    if (isEdit && task) {
+      updateTask({ id: task._id, data: { screenshots: next } });
+    }
   };
 
   const handleAddSelectedVaultImages = () => {
@@ -245,27 +249,18 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
     });
 
     if (urlsToAdd.length > 0) {
-      setValue("screenshots", [...screenshotsList, ...urlsToAdd], { shouldDirty: true });
+      const nextUrls = [...screenshotsList, ...urlsToAdd];
+      setValue("screenshots", nextUrls, { shouldDirty: true });
       toast.success(`Added ${urlsToAdd.length} image(s) from vault.`);
+      
+      if (isEdit && task) {
+        updateTask({ id: task._id, data: { screenshots: nextUrls } });
+      }
     }
 
     setVaultOpen(false);
     setSelectedVaultImages(new Set());
     setVaultSearch("");
-  };
-
-  const handleAddComment = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!commentText.trim()) return;
-
-    addComment(
-      { text: commentText.trim() },
-      {
-        onSuccess: () => {
-          setCommentText("");
-        },
-      }
-    );
   };
 
   const formatInputDate = (dateVal: string | Date | null | undefined) => {
@@ -279,9 +274,6 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
   };
 
   const handleOpenChange = (isOpen: boolean) => {
-    if (!isOpen) {
-      setCommentText("");
-    }
     onOpenChange(isOpen);
   };
 
@@ -313,12 +305,13 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
           )}
         >
           {isEdit && task ? (
-            /* 2-Section Layout for Editing Task/Bug (Taller layout) */
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:h-[660px]">
-              {/* Left Section: Form */}
-              <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col justify-between h-full md:pr-6 md:border-r md:border-border min-w-0">
-                <div className="space-y-4 overflow-y-auto pr-1 flex-1 min-h-0">
-                  <DialogHeader className="space-y-0.5">
+            /* Layout for Editing Task/Bug */
+            <div className="flex flex-col gap-6">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                {/* Left Section: Form */}
+                <form id="edit-task-form" onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full min-w-0">
+                  <div className="space-y-4 flex-1 min-h-0">
+                    <DialogHeader className="space-y-0.5">
                     <DialogTitle className="text-base flex items-center justify-between">
                       <span>
                         {taskType === "bug"
@@ -447,12 +440,20 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
                       </Field>
                     </div>
 
-                    <div className="md:col-span-2">
+                  </div>
+                </div>
+              </form>
+
+                {/* Right Section: Area & Screenshots */}
+                <div className="flex flex-col space-y-4 h-full min-w-0 pt-4 md:pt-0">
+                  <div className="space-y-4 flex-1">
+                    <div>
                       <Field data-invalid={!!errors.area}>
                         <FieldLabel htmlFor="area" className="text-xs">Area / Module</FieldLabel>
                         <Input
                           id="area"
                           type="text"
+                          form="edit-task-form"
                           placeholder="e.g. Authentication, Billing, Header..."
                           disabled={isPending}
                           className="h-9 text-xs"
@@ -463,7 +464,7 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
                     </div>
 
                     {/* Screenshot Upload Panel */}
-                    <div className="md:col-span-2 space-y-1.5">
+                    <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <FieldLabel className="text-xs">Screenshots</FieldLabel>
                         <button
@@ -550,98 +551,34 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
                       )}
                     </div>
                   </div>
-                </div>
 
-                {/* Action Buttons aligned at the bottom */}
-                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border mt-auto shrink-0">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={isPending}
-                    onClick={() => onOpenChange(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" size="sm" disabled={isPending}>
-                    {isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      "Save changes"
-                    )}
-                  </Button>
-                </div>
-              </form>
-
-              {/* Right Section: Comments (Flex column aligned to full dialog height) */}
-              <div className="flex flex-col h-full md:pl-6 min-w-0 pt-4 md:pt-0">
-                <div className="space-y-3 flex-1 flex flex-col min-h-0">
-                  <div className="flex items-center gap-2">
-                    <MessageSquare className="text-muted-foreground h-4 w-4" />
-                    <h3 className="text-foreground text-sm font-semibold">
-                      Comments <span className="text-muted-foreground font-normal">({task.comments.length})</span>
-                    </h3>
+                  {/* Action Buttons aligned at the bottom */}
+                  <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border mt-auto shrink-0">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isPending}
+                      onClick={() => onOpenChange(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" form="edit-task-form" size="sm" disabled={isPending}>
+                      {isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save changes"
+                      )}
+                    </Button>
                   </div>
-
-                  {/* Stretches to fill vertical space perfectly */}
-                  <ScrollArea className="border-border bg-muted/10 flex-1 rounded-md border p-3 min-h-0">
-                    {task.comments.length === 0 ? (
-                      <div className="flex h-full min-h-[180px] items-center justify-center p-4 text-center">
-                        <p className="text-muted-foreground text-xs leading-relaxed">
-                          No comments yet. Write a comment below to start.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {task.comments.map((comment, index) => (
-                          <div key={index} className="space-y-1">
-                            <p className="text-foreground bg-background border-border rounded border p-2.5 text-xs leading-relaxed break-all break-words">
-                              {comment.text}
-                            </p>
-                            <div className="flex items-center justify-between mt-1 px-1">
-                              <span className="text-muted-foreground block font-mono text-[10px] font-medium">
-                                {comment.createdBy?.name || comment.userName || "Team Member"}
-                              </span>
-                              <span className="text-muted-foreground block text-right font-mono text-[10px]">
-                                {new Date(comment.createdAt).toLocaleString()}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </ScrollArea>
                 </div>
-
-                {/* Aligned exactly at the bottom with form submit buttons */}
-                <form onSubmit={handleAddComment} className="flex gap-2 pt-3 border-t border-border mt-4 shrink-0">
-                  <Input
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    placeholder="Type a comment..."
-                    disabled={isCommentPending}
-                    className="flex-1 text-xs h-9"
-                  />
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={isCommentPending || !commentText.trim()}
-                    className="shrink-0 h-9"
-                    title="Send comment"
-                  >
-                    {isCommentPending ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Send className="h-3.5 w-3.5" />
-                    )}
-                  </Button>
-                </form>
               </div>
-            </div>
-          ) : (
+
+              </div>
+            ) : (
             /* Single Column Layout for New Task/Bug Creation */
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <DialogHeader>
@@ -750,9 +687,10 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
                       id="dueDate"
                       type="date"
                       disabled={isPending}
+                      value={watch("dueDate") ? formatInputDate(watch("dueDate")) : ""}
                       onChange={(e) => {
                         const val = e.target.value;
-                        setValue("dueDate", val ? new Date(val) : null, { shouldDirty: true });
+                        setValue("dueDate", val ? new Date(val) : null, { shouldDirty: true, shouldValidate: true });
                       }}
                     />
                     {errors.dueDate?.message && <FieldError>{errors.dueDate.message}</FieldError>}
@@ -932,6 +870,19 @@ export function TaskDialog({ open, onOpenChange, projectId, task, defaultType }:
                             next.add(image._id);
                           }
                           setSelectedVaultImages(next);
+                        }}
+                        onDoubleClick={() => {
+                          const publicUrl = `${r2Prefix}/${image.r2Key}`;
+                          setValue("screenshots", [...screenshotsList, publicUrl], { shouldDirty: true });
+                          
+                          if (isEdit && task) {
+                            updateTask({ id: task._id, data: { screenshots: [...screenshotsList, publicUrl] } });
+                          }
+                          
+                          toast.success(`Added "${image.name}" from vault.`);
+                          setVaultOpen(false);
+                          setSelectedVaultImages(new Set());
+                          setVaultSearch("");
                         }}
                         className={cn(
                           "group relative aspect-video border rounded-md overflow-hidden bg-muted cursor-pointer transition-all duration-150 select-none",

@@ -21,6 +21,7 @@ import {
   CheckSquare,
   GitBranch,
   Inbox,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/constants/routes.constants";
@@ -52,7 +53,6 @@ interface SidebarProps {
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard },
   { label: "Projects", href: ROUTES.PROJECTS, icon: FolderOpen },
-  { label: "Invitations", href: ROUTES.INVITATIONS, icon: Inbox },
   { label: "Calendar", href: ROUTES.CALENDAR, icon: Calendar },
 ];
 
@@ -299,9 +299,18 @@ export function Sidebar({ userName = "User", userEmail = "" }: SidebarProps) {
         )}
       </ScrollArea>
 
-      {/* User profile */}
-      <div className="border-t border-[oklch(0.22_0.008_240)] p-2">
-        <Separator className="mb-2 bg-[oklch(0.22_0.008_240)]" />
+      {/* Settings & User profile */}
+      <div className="border-t border-[oklch(0.22_0.008_240)] p-2 space-y-1">
+        <SidebarNavItem
+          item={{
+            label: "Settings",
+            href: activeProjectId ? ROUTES.PROJECT_SETTINGS(activeProjectId) : ROUTES.SETTINGS,
+            icon: SettingsIcon,
+          }}
+          active={pathname.startsWith(ROUTES.SETTINGS) || (activeProjectId ? pathname.startsWith(ROUTES.PROJECT_SETTINGS(activeProjectId)) : false)}
+          collapsed={collapsed}
+        />
+        <Separator className="mb-2 bg-[oklch(0.22_0.008_240)]" style={{ backgroundColor: "oklch(0.22 0.008 240)" }} />
         <ProfileDropdown userName={userName} userEmail={userEmail} collapsed={collapsed} />
       </div>
     </aside>

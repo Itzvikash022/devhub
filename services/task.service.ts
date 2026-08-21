@@ -79,17 +79,30 @@ export class TaskService {
 
   static async listByProjectId(userId: string, projectId: string): Promise<ITaskDocument[]> {
     // Verify project ownership
-    await ProjectService.getById(userId, projectId);
+    const project = await ProjectService.getById(userId, projectId);
+    const rawOwnerId = (project.userId as any)?._id || project.userId;
+    const ownerId = rawOwnerId.toString();
 
     const tasks = await TaskRepository.findAllByProjectId(projectId);
     
-    // Backfill any tasks missing bugNumber (general itemNumber)
+    // Backfill any tasks missing bugNumber (general itemNumber) or createdBy
     let projectTouched = false;
     for (const task of tasks) {
+      const updateData: { bugNumber?: number; createdBy?: string } = {};
+      let needsBackfill = false;
+
       if (task.bugNumber === null || task.bugNumber === undefined) {
         const nextNum = await ProjectRepository.incrementBugCounter(projectId);
-        task.bugNumber = nextNum;
-        await task.save();
+        updateData.bugNumber = nextNum;
+        needsBackfill = true;
+      }
+      if (!task.createdBy) {
+        updateData.createdBy = ownerId;
+        needsBackfill = true;
+      }
+
+      if (needsBackfill) {
+        await TaskRepository.backfill(task._id.toString(), updateData);
         projectTouched = true;
       }
     }
